@@ -470,25 +470,17 @@
     font-size: 1.5rem !important;
   }
   .demographic-banner {
-  display: flex;
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
-  gap: 8px !important;
-  padding: 12px !important;
-  scroll-snap-type: x mandatory;
-}
-
-.demo-card {
-  flex: 0 0 auto;
-  min-width: 150px;
-  scroll-snap-align: start;
-  padding: 10px !important;
-  text-align: center;
-}
+    display: flex;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
     gap: 8px !important;
     padding: 12px !important;
+    scroll-snap-type: x mandatory;
   }
   .demo-card {
+    flex: 0 0 auto;
+    min-width: 150px;
+    scroll-snap-align: start;
     padding: 10px !important;
     text-align: center;
   }
