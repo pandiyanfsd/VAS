@@ -1,0 +1,400 @@
+.admin-layout {
+  display: flex;
+  min-height: 100vh;
+  background: var(--bg-gradient);
+  position: relative;
+  overflow-x: hidden; /* Prevent page level horizontal scroll */
+}
+
+/* Sidebar Styles */
+.sidebar {
+  width: 260px;
+  height: 100vh;
+  position: fixed;
+  left: 0;
+  top: 0;
+  display: flex;
+  flex-direction: column;
+  border-radius: 0;
+  border-left: none;
+  border-top: none;
+  border-bottom: none;
+  z-index: 100;
+  transition: transform 0.3s ease;
+}
+
+.sidebar-header {
+  padding: 30px 20px;
+  text-align: center;
+  border-bottom: 1px solid var(--glass-border);
+}
+
+.sidebar-header h2 {
+  color: var(--primary-color);
+  font-weight: 700;
+  font-size: 1.5rem;
+  letter-spacing: 1px;
+}
+
+.sidebar-nav {
+  flex: 1;
+  padding: 20px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Sidebar Nav Item Styling */
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 18px;
+  color: #64748b !important;
+  text-decoration: none;
+  border-radius: 12px;
+  font-weight: 600;
+  font-size: 0.95rem;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  border: 1px solid transparent;
+}
+
+.nav-item svg {
+  color: #64748b;
+  transition: color 0.25s ease, transform 0.25s ease;
+}
+
+.nav-item:hover {
+  background: rgba(79, 70, 229, 0.06) !important;
+  color: #4f46e5 !important;
+  transform: translateX(6px);
+}
+
+.nav-item:hover svg {
+  color: #4f46e5;
+  transform: scale(1.1);
+}
+
+.nav-item.active {
+  background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%) !important;
+  color: white !important;
+  font-weight: 700;
+  box-shadow: 0 8px 16px rgba(79, 70, 229, 0.25) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.nav-item.active svg {
+  color: white !important;
+}
+
+.sidebar-footer {
+  padding: 20px;
+  border-top: 1px solid var(--glass-border);
+}
+
+.logout-btn {
+  width: 100%;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  color: var(--error);
+  font-size: 1rem;
+}
+
+.logout-btn:hover {
+  background: rgba(239, 68, 68, 0.1);
+  transform: translateX(0);
+}
+
+/* Main Content Styles */
+.main-content {
+  flex: 1;
+  margin-left: 260px;
+  padding: 30px;
+  display: flex;
+  flex-direction: column;
+  overflow-x: hidden; /* Prevent page level horizontal scroll */
+  box-sizing: border-box;
+}
+
+.content-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 30px;
+}
+
+.content-header h1 {
+  font-size: 1.8rem;
+  color: var(--text-dark);
+  font-weight: 700;
+}
+
+.user-profile {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--glass-bg);
+  padding: 8px 16px;
+  border-radius: 30px;
+  border: 1px solid var(--glass-border);
+  font-weight: 600;
+}
+
+.avatar {
+  width: 32px;
+  height: 32px;
+  background: var(--primary-color);
+  color: white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+}
+
+.content-body {
+  flex: 1;
+}
+
+.dashboard-card {
+  padding: 30px;
+  min-height: 400px;
+}
+
+.dashboard-card h2 {
+  margin-bottom: 15px;
+  color: var(--text-dark);
+}
+
+/* Mobile Header & Overlay */
+.mobile-header {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 60px;
+  background: var(--glass-bg);
+  backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--glass-border);
+  z-index: 90;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 20px;
+}
+
+.menu-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--text-dark);
+  display: flex;
+  align-items: center;
+}
+
+.sidebar-overlay {
+  display: none;
+}
+
+/* Mobile Responsiveness */
+@media (max-width: 768px) {
+  .sidebar {
+    transform: translateX(-100%);
+  }
+  
+  .sidebar.open {
+    transform: translateX(0);
+  }
+  
+  .main-content {
+    margin-left: 0;
+    padding: 80px 20px 20px 20px; /* Space for mobile header */
+  }
+
+  .mobile-header {
+    display: flex;
+  }
+
+  .mobile-header h2 {
+    color: var(--primary-color);
+    font-weight: 700;
+    font-size: 1.2rem;
+  }
+
+  .content-header {
+    display: none; /* Hide desktop header on mobile */
+  }
+
+  .sidebar-overlay {
+    display: block;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.4);
+    z-index: 95;
+    backdrop-filter: blur(4px);
+  }
+}
+
+/* Clickable Stats Card styles for Cashier Dashboard */
+.clickable-stat-card {
+  cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.clickable-stat-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 10px 20px -5px rgba(0, 0, 0, 0.08);
+}
+
+.clickable-stat-card.allotted:hover {
+  border-color: rgba(79, 70, 229, 0.4) !important;
+  background: rgba(79, 70, 229, 0.12) !important;
+}
+
+.clickable-stat-card.paid:hover {
+  border-color: rgba(16, 185, 129, 0.4) !important;
+  background: rgba(16, 185, 129, 0.12) !important;
+}
+
+.clickable-stat-card.outstanding-warning:hover {
+  border-color: rgba(225, 29, 72, 0.4) !important;
+  background: rgba(225, 29, 72, 0.12) !important;
+}
+
+.clickable-stat-card.outstanding-success:hover {
+  border-color: rgba(16, 185, 129, 0.4) !important;
+  background: rgba(16, 185, 129, 0.12) !important;
+}
+
+/* Cashier Dashboard Mobile Responsive Layouts */
+.treasury-banner {
+  display: grid !important;
+  grid-template-columns: repeat(3, 1fr) !important;
+  gap: 16px !important;
+}
+
+.totals-summary-row {
+  display: grid !important;
+  grid-template-columns: repeat(3, 1fr) !important;
+  gap: 12px !important;
+}
+
+.responsive-flex-row {
+  display: flex !important;
+  flex-direction: row !important;
+  gap: 12px !important;
+  align-items: center !important;
+}
+
+.responsive-grid-payment {
+  display: grid !important;
+  grid-template-columns: 1fr 1.5fr !important;
+  gap: 16px !important;
+}
+
+.responsive-footer-row {
+  display: flex !important;
+  justify-content: space-between !important;
+  align-items: center !important;
+}
+
+@media (max-width: 768px) {
+  .treasury-banner {
+    grid-template-columns: 1fr !important;
+    gap: 12px !important;
+    padding: 16px !important;
+  }
+  
+  .totals-summary-row {
+    grid-template-columns: 1fr !important;
+    gap: 10px !important;
+  }
+}
+
+@media (max-width: 600px) {
+  .responsive-flex-row {
+    flex-direction: column !important;
+    align-items: stretch !important;
+  }
+  
+  .responsive-flex-row > button {
+    width: 100% !important;
+  }
+  
+  .responsive-grid-payment {
+    grid-template-columns: 1fr !important;
+    gap: 12px !important;
+  }
+  
+  .responsive-footer-row {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 12px !important;
+    text-align: center !important;
+  }
+  
+  .responsive-footer-row button {
+    width: 100% !important;
+    justify-content: center !important;
+  }
+  
+  /* Details Modal responsiveness */
+  .details-modal-container {
+    max-width: 95% !important;
+    padding: 20px !important;
+  }
+
+  /* Treasury Banner mobile view labels visibility override */
+  .treasury-banner .demo-label {
+    display: block !important;
+    font-size: 0.75rem !important;
+    color: #94a3b8 !important;
+    font-weight: 800 !important;
+    text-transform: uppercase !important;
+    margin-bottom: 4px !important;
+  }
+  .treasury-banner .demo-sublabel {
+    display: block !important;
+    font-size: 0.7rem !important;
+    color: #64748b !important;
+    margin-top: 2px !important;
+  }
+  .treasury-banner .demo-card {
+    text-align: left !important;
+    padding: 16px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 4px !important;
+  }
+  .treasury-banner .demo-icon {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    margin-bottom: 6px !important;
+  }
+}
+
+/* Clear Villager Button Styling */
+.btn-clear-villager {
+  background: rgba(239, 68, 68, 0.08) !important;
+  color: #ef4444 !important;
+  border: 1px solid rgba(239, 68, 68, 0.15) !important;
+  padding: 8px 16px;
+  border-radius: 10px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-clear-villager:hover {
+  background: rgba(239, 68, 68, 0.15) !important;
+  transform: translateY(-1px);
+}
+
+
+

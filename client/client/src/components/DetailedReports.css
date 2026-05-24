@@ -1,0 +1,953 @@
+/* Detailed Reports Dashboard Layout */
+.reports-container {
+  display: flex;
+  flex-direction: column;
+  gap: 25px;
+  padding-bottom: 40px;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  overflow-x: hidden; /* Prevent page-level horizontal scrolling */
+}
+
+/* 1. Metrics Grid */
+.metrics-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 20px;
+}
+
+.metric-card {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 20px;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.metric-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 25px rgba(31, 38, 135, 0.08);
+}
+
+.metric-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 50px;
+  height: 50px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.8);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+}
+
+.metric-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.metric-info .label {
+  font-size: 0.85rem;
+  color: var(--text-light);
+  font-weight: 500;
+}
+
+.metric-info h3 {
+  font-size: 1.6rem;
+  font-weight: 700;
+  margin: 0;
+}
+
+/* Curated color variables */
+.text-teal { color: #0d9488; }
+.text-teal .metric-icon { color: #0d9488; background: rgba(13, 148, 136, 0.1); }
+.text-pink { color: #db2777; }
+.text-pink .metric-icon { color: #db2777; background: rgba(219, 39, 119, 0.1); }
+.text-indigo { color: #4f46e5; }
+.text-indigo .metric-icon { color: #4f46e5; background: rgba(79, 70, 229, 0.1); }
+
+/* 2. Filters Panel */
+.filters-panel {
+  padding: 25px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.filters-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--text-dark);
+  font-weight: 600;
+}
+
+.filters-header h4 {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.filters-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 15px;
+}
+
+.filters-panel .input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.filters-panel label {
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--text-light);
+}
+
+/* Shortcuts & Actions row */
+.shortcuts-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 15px;
+  border-top: 1px solid rgba(255, 255, 255, 0.5);
+  padding-top: 15px;
+}
+
+.date-shortcuts {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.shortcut-btn {
+  padding: 8px 16px;
+  border: 1px solid #d1d5db; /* Solid border for absolute visibility */
+  background: white; /* Solid white background */
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  border-radius: 8px;
+  color: #374151; /* Deep charcoal text */
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
+  transition: all 0.2s ease;
+}
+
+.shortcut-btn:hover {
+  background: var(--primary-color);
+  border-color: var(--primary-color);
+  color: white;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 10px rgba(79, 70, 229, 0.2);
+}
+
+.shortcut-btn.active {
+  background: var(--primary-color) !important;
+  border-color: var(--primary-color) !important;
+  color: white !important;
+  box-shadow: 0 4px 10px rgba(79, 70, 229, 0.25) !important;
+}
+
+.action-buttons {
+  display: flex;
+  gap: 12px;
+}
+
+.action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  border-radius: 10px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  background: white;
+  border: 1px solid #d1d5db;
+  color: var(--text-dark);
+  transition: all 0.2s ease;
+}
+
+.action-btn:hover {
+  background: #f9fafb;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+}
+
+.csv-btn {
+  background: #0284c7 !important; /* High-Visibility Ocean Blue for CSV */
+  color: white !important;
+  border: none !important;
+  box-shadow: 0 4px 12px rgba(2, 132, 199, 0.25) !important;
+}
+
+.csv-btn:hover {
+  background: #0369a1 !important; /* Deeper Ocean Blue hover */
+  box-shadow: 0 6px 18px rgba(3, 105, 161, 0.4) !important;
+  transform: translateY(-2px) !important;
+}
+
+.print-btn {
+  background: #dc2626 !important; /* High-Visibility Crimson Red for PDF */
+  color: white !important;
+  border: none !important;
+  box-shadow: 0 4px 12px rgba(220, 38, 38, 0.25) !important;
+}
+
+.print-btn:hover {
+  background: #b91c1c !important; /* Deeper Crimson Red hover */
+  box-shadow: 0 6px 18px rgba(185, 28, 28, 0.4) !important;
+  transform: translateY(-2px) !important;
+}
+
+/* 3. Navigation Tabs */
+.tabs-header {
+  display: flex;
+  gap: 10px;
+  border-bottom: 2px solid rgba(255, 255, 255, 0.4);
+  padding-bottom: 2px;
+}
+
+.tab-item {
+  padding: 12px 24px;
+  background: transparent;
+  border: none;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #4b5563; /* Deep, clear grey instead of light grey */
+  cursor: pointer;
+  border-bottom: 3px solid transparent;
+  transition: all 0.2s ease;
+}
+
+.tab-item:hover {
+  color: #111827; /* Dark black on hover */
+}
+
+.tab-item.active {
+  color: var(--primary-color);
+  border-bottom-color: var(--primary-color);
+  font-weight: 700;
+}
+
+/* Force excellent high-contrast text color inside all filter dropdowns & date pickers */
+.filters-panel .input-field {
+  color: #111827 !important;
+  font-weight: 500 !important;
+  background: rgba(255, 255, 255, 0.95) !important;
+}
+
+/* 4. Report Tables & Highly Visible Scrollbars */
+.table-wrapper {
+  overflow-x: auto;
+  border-radius: 20px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--primary-color) rgba(0, 0, 0, 0.05);
+}
+
+/* Custom Webkit Scrollbars for Table Wrapper */
+.table-wrapper::-webkit-scrollbar {
+  height: 8px; /* Thickness of horizontal scrollbar */
+}
+
+.table-wrapper::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.04);
+  border-radius: 10px;
+  margin: 0 10px;
+}
+
+.table-wrapper::-webkit-scrollbar-thumb {
+  background: var(--primary-color);
+  border-radius: 10px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+.table-wrapper::-webkit-scrollbar-thumb:hover {
+  background: var(--primary-hover);
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+.report-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.report-table th,
+.report-table td {
+  padding: 16px 20px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.report-table th {
+  background: rgba(255, 255, 255, 0.4);
+  font-weight: 600;
+  color: var(--text-dark);
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.report-table td {
+  font-size: 0.95rem;
+  color: var(--text-dark);
+}
+
+.report-table tbody tr:hover {
+  background: rgba(255, 255, 255, 0.4);
+}
+
+.receipt-tag {
+  background: rgba(79, 70, 229, 0.1);
+  color: #4f46e5;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-family: monospace;
+  font-weight: 600;
+}
+
+.mode-badge {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+
+.mode-badge.cash { background: rgba(16, 185, 129, 0.1); color: #10b981; }
+.mode-badge.online { background: rgba(79, 70, 229, 0.1); color: #4f46e5; }
+.mode-badge.qr { background: rgba(6, 182, 212, 0.1); color: #06b6d4; }
+
+.category-badge {
+  background: rgba(219, 39, 119, 0.08);
+  color: #db2777;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.amount-cell {
+  font-weight: 700;
+  font-size: 1rem;
+}
+
+/* 5. Balance Sheet Style */
+.grid-2 {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 20px;
+}
+
+.summary-section {
+  padding: 25px;
+}
+
+.summary-section h3 {
+  margin: 0 0 20px 0;
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: var(--text-dark);
+}
+
+.summary-list {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.summary-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 12px;
+  border-bottom: 1px dashed rgba(0, 0, 0, 0.05);
+}
+
+.summary-item span {
+  font-size: 0.95rem;
+  color: var(--text-light);
+}
+
+.summary-item strong {
+  font-size: 1.15rem;
+  font-weight: 700;
+}
+
+.summary-item.total-row {
+  border-bottom: none;
+  padding-top: 10px;
+  border-top: 2px solid rgba(0, 0, 0, 0.05);
+}
+
+.summary-item.total-row strong {
+  font-size: 1.4rem;
+}
+
+/* Media Query: Print Styles */
+@media print {
+  body {
+    background: white !important;
+    color: black !important;
+  }
+  
+  /* Hide sidebar and admin UI panels */
+  .sidebar,
+  .mobile-header,
+  .content-header,
+  .filters-panel,
+  .tabs-header,
+  .sidebar-overlay {
+    display: none !important;
+  }
+
+  /* Expand main container to page boundaries */
+  .admin-layout {
+    display: block !important;
+  }
+
+  .main-content {
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+  }
+
+  /* Format reporting container */
+  .reports-container {
+    gap: 15px !important;
+  }
+
+  .metrics-row {
+    grid-template-columns: repeat(4, 1fr) !important;
+    gap: 10px !important;
+  }
+
+  .metric-card {
+    border: 1px solid #ddd !important;
+    box-shadow: none !important;
+    background: transparent !important;
+    padding: 10px !important;
+    border-radius: 8px !important;
+  }
+
+  .metric-info h3 {
+    font-size: 1.1rem !important;
+  }
+
+  /* Make report tables perfectly flat and clear */
+  .report-table th {
+    background: #f5f5f5 !important;
+    color: black !important;
+    border: 1px solid #ddd !important;
+    font-weight: bold !important;
+  }
+
+  .report-table td {
+    border: 1px solid #ddd !important;
+  }
+  
+  .table-wrapper {
+    box-shadow: none !important;
+    border: none !important;
+  }
+}
+
+/* Printable Header Styles (Hidden on Screen) */
+.print-only-header {
+  display: none;
+}
+
+@media print {
+  .print-only-header {
+    display: block !important;
+    text-align: center;
+    margin-bottom: 25px;
+    font-family: 'Inter', sans-serif;
+    background: transparent !important;
+    color: black !important;
+    padding: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+  }
+  
+  .print-only-header h1 {
+    font-size: 1.8rem;
+    font-weight: 800;
+    letter-spacing: 1px;
+    margin: 0 0 5px 0;
+    color: black !important;
+  }
+  
+  .print-only-header h3 {
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin: 0 0 15px 0;
+    color: #4b5563 !important;
+  }
+  
+  .print-meta-grid {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.9rem;
+    color: #4b5563 !important;
+    padding: 0 10px;
+    margin-bottom: 10px;
+  }
+  
+  .print-divider {
+    display: block !important;
+    border: 0;
+    border-top: 2px solid #111827;
+    margin: 0;
+  }
+}
+
+/* Responsive Mobile Alignments for Denalai Portal */
+@media (max-width: 768px) {
+  .reports-container {
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+    overflow-x: hidden !important;
+    padding: 0 5px !important;
+  }
+
+  .metrics-row {
+    grid-template-columns: 1fr !important;
+    gap: 15px;
+  }
+  
+  .filters-panel {
+    padding: 15px;
+  }
+  
+  .filters-grid {
+    grid-template-columns: 1fr !important;
+    gap: 12px;
+  }
+  
+  .shortcuts-row {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 15px;
+  }
+  
+  .date-shortcuts {
+    display: grid !important;
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 8px;
+  }
+  
+  .action-buttons {
+    display: grid !important;
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 10px;
+  }
+  
+  .shortcut-btn, .action-btn {
+    width: 100% !important;
+    justify-content: center !important;
+    text-align: center !important;
+    padding: 10px 8px !important;
+    font-size: 0.8rem !important;
+  }
+  
+  .tabs-header {
+    flex-direction: column !important;
+    border-bottom: none !important;
+    gap: 8px;
+    padding-bottom: 0;
+  }
+  
+  .tab-item {
+    width: 100% !important;
+    border-bottom: none !important;
+    border-left: 3px solid transparent !important;
+    padding: 12px 15px !important;
+    text-align: left !important;
+    background: rgba(255, 255, 255, 0.4) !important;
+    border-radius: 10px !important;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.02);
+  }
+  
+  .tab-item.active {
+    border-left-color: var(--primary-color) !important;
+    background: rgba(255, 255, 255, 0.8) !important;
+    font-weight: 700;
+  }
+  
+  .report-table th, .report-table td {
+    padding: 12px 10px !important;
+    font-size: 0.8rem !important;
+  }
+  
+  .grid-2 {
+    grid-template-columns: 1fr !important;
+    gap: 15px;
+  }
+  
+  .summary-section {
+    padding: 15px;
+  }
+}
+
+/* ==========================================
+   5. Highly Effective & Attractive Styles
+   ========================================== */
+
+/* Live Search Bar Wrapper */
+.search-bar-wrapper {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 15px;
+  padding: 12px 20px;
+  margin-bottom: 18px;
+  background: rgba(255, 255, 255, 0.85) !important;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.02);
+}
+
+.search-input-container {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex: 1;
+}
+
+.search-icon {
+  position: absolute;
+  left: 12px;
+  font-size: 1rem;
+  color: #9ca3af;
+}
+
+.table-search-input {
+  width: 100%;
+  padding: 10px 40px 10px 38px;
+  border: 1px solid #e5e7eb;
+  background: #f9fafb !important;
+  color: #111827 !important;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  outline: none;
+  transition: all 0.25s ease;
+}
+
+.table-search-input:focus {
+  border-color: var(--primary-color);
+  background: white !important;
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+}
+
+.clear-search-btn {
+  position: absolute;
+  right: 12px;
+  background: none;
+  border: none;
+  color: #9ca3af;
+  font-size: 0.95rem;
+  cursor: pointer;
+  padding: 2px;
+  transition: color 0.2s ease;
+}
+
+.clear-search-btn:hover {
+  color: #ef4444;
+}
+
+.search-results-badge {
+  background: rgba(79, 70, 229, 0.08);
+  color: var(--primary-color);
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+/* Zebra Striping & Beautiful Table Enhancements */
+.row-even {
+  background: rgba(255, 255, 255, 0.4);
+}
+
+.row-odd {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.report-table tr:hover {
+  background: rgba(79, 70, 229, 0.04) !important;
+  transition: background 0.2s ease;
+}
+
+.member-id-code {
+  font-family: 'Courier New', Courier, monospace;
+  background: rgba(0, 0, 0, 0.04);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: 600;
+  color: #4b5563;
+}
+
+.fund-name-tag {
+  background: rgba(79, 70, 229, 0.05);
+  color: #4338ca;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  border: 1px solid rgba(79, 70, 229, 0.1);
+}
+
+.desc-text-muted {
+  color: #6b7280;
+  font-size: 0.85rem;
+}
+
+/* Audit balance section header & elements */
+.summary-header-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 18px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.04);
+  padding-bottom: 12px;
+}
+
+.summary-header-row h3 {
+  margin: 0 !important;
+}
+
+.summary-section-icon {
+  font-size: 1.4rem;
+}
+
+.balance-badge {
+  padding: 6px 14px;
+  border-radius: 12px;
+  font-size: 1.2rem;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.02);
+}
+
+/* Visual Progress Bars for Financial Audits */
+.progress-container {
+  margin-top: 25px;
+  padding-top: 15px;
+  border-top: 1px dashed rgba(0, 0, 0, 0.06);
+}
+
+.progress-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.progress-info span {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #4b5563;
+}
+
+.progress-info strong {
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: #111827;
+}
+
+.progress-bar-bg {
+  width: 100%;
+  height: 8px;
+  background: #e5e7eb;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  border-radius: 10px;
+  transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.progress-bar-fill.teal {
+  background: linear-gradient(90deg, #10b981, #059669);
+}
+
+.progress-bar-fill.indigo {
+  background: linear-gradient(90deg, #6366f1, #4f46e5);
+}
+
+.progress-helper-text {
+  font-size: 0.75rem;
+  color: #9ca3af;
+  margin-top: 6px;
+  font-style: italic;
+}
+
+/* Mobile search adjustments */
+@media (max-width: 768px) {
+  .search-bar-wrapper {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+    padding: 10px;
+  }
+  
+  .search-results-badge {
+    text-align: center;
+    width: 100%;
+  }
+}
+
+.mt-6 {
+  margin-top: 24px !important;
+}
+
+/* Recent Activity Feeds */
+.activity-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 10px;
+}
+
+.activity-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  background: rgba(255, 255, 255, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  border-radius: 10px;
+  transition: all 0.2s ease;
+}
+
+.activity-item:hover {
+  background: rgba(255, 255, 255, 0.8);
+  transform: translateX(3px);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.02);
+}
+
+.activity-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: rgba(20, 184, 166, 0.1);
+  color: #14b8a6;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.95rem;
+}
+
+.activity-avatar.expense-avatar {
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+}
+
+.activity-details {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+.activity-details strong {
+  font-size: 0.9rem;
+  color: #1f2937;
+}
+
+.activity-details span {
+  font-size: 0.75rem;
+  color: #6b7280;
+}
+
+.activity-amount {
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+/* Active Fund progress items */
+.funds-progress-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 18px;
+  margin-top: 10px;
+}
+
+.fund-progress-card {
+  padding: 18px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.6) !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.02);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.fund-progress-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.05);
+}
+
+.fund-progress-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 15px;
+}
+
+.fund-progress-header h4 {
+  margin: 0 0 5px 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #111827;
+}
+
+.fund-type-tag {
+  display: inline-block;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.fund-progress-values {
+  text-align: right;
+  display: flex;
+  flex-direction: column;
+}
+
+.fund-progress-values strong {
+  font-size: 0.95rem;
+  color: #111827;
+}
+
+.fund-progress-values span {
+  font-size: 0.7rem;
+  color: #6b7280;
+}
+
+.helper-link {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  margin-top: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.cursor-pointer {
+  cursor: pointer;
+}
+
