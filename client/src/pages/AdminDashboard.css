@@ -101,10 +101,17 @@
   justify-content: center;
 }
 
-.toolbar .filter-controls {
-  flex-direction: column !important;
-  gap: 12px !important;
+.toolbar {
+  justify-content: center !important;
 }
+.toolbar .filter-controls {
+  justify-content: center !important;
+}
+.toolbar .filter-controls > div {
+  display: flex;
+  justify-content: center;
+}
+
 .toolbar .filter-controls > div {
   width: 100% !important;
 }
@@ -427,6 +434,39 @@
 .btn-clear-villager:hover {
   background: rgba(239, 68, 68, 0.15) !important;
   transform: translateY(-1px);
+}
+@media (max-width: 600px) {
+  .toolbar {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    justify-content: center !important;
+    gap: 12px !important;
+  }
+  .toolbar > div {
+    width: 100% !important;
+    display: flex;
+    justify-content: center !important;
+  }
+  .toolbar .filter-controls {
+    flex-direction: column !important;
+    align-items: stretch !important;
+  }
+  .toolbar .filter-controls > div {
+    width: 100% !important;
+    display: flex;
+    justify-content: center !important;
+  }
+  .toolbar .filter-controls select,
+  .toolbar .search-box input {
+    width: 100% !important;
+  }
+  .expenses-overview {
+    justify-items: center;
+    justify-content: center;
+  }
+  .expenses-overview > div {
+    margin: 0 auto;
+  }
 }
 
 
