@@ -59,7 +59,7 @@ const AdminDashboard = () => {
         </div>
         
           <nav className="sidebar-nav">
-            {navLinks.filter((link) => link.path !== '/admin/summary').map((link) => (
+            {navLinks.map((link) => (
               <Link
                 key={link.path}
                 to={link.path}
@@ -70,24 +70,13 @@ const AdminDashboard = () => {
                 <span>{link.name}</span>
               </Link>
             ))}
-            {/* Logout button placed before Summary */}
+            {/* Logout button placed as last item */}
             <button className="nav-item logout-btn" onClick={handleLogout}>
               <LogOut size={20} />
               <span>Logout</span>
             </button>
-            {/* Summary link */}
-            {navLinks.filter((link) => link.path === '/admin/summary').map((link) => (
-              <Link
-                key={link.path}
-                to={link.path}
-                className={`nav-item ${location.pathname === link.path ? 'active' : ''}`}
-                onClick={() => setIsMobileMenuOpen(false)}
-              >
-                {link.icon}
-                <span>{link.name}</span>
-              </Link>
-            ))}
-          </nav>      </aside>
+          </nav>
+        </aside>
 
       {/* Main Content Area */}
       <main className="main-content">

@@ -39,6 +39,7 @@
 .sidebar-nav {
   flex: none !important;
   padding: 20px 10px;
+  padding-bottom: 80px;
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -89,8 +90,8 @@
 }
 
 .sidebar .logout-btn {
-  margin-top: 0 !important;
-  margin-bottom: 8px !important;
+  margin-top: -8px !important;
+  margin-bottom: 0 !important;
 }
 
 .logout-btn:hover {
