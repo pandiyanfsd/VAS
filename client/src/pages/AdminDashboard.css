@@ -116,9 +116,7 @@
 }
 
 
-    gap: 12px !important;
-    align-items: stretch !important;
-  }
+
   .toolbar > div {
     width: 100% !important;
   }
