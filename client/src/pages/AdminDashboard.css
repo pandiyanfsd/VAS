@@ -37,11 +37,12 @@
 }
 
 .sidebar-nav {
-  flex: 1;
+  flex: none !important;
   padding: 20px 10px;
   display: flex;
   flex-direction: column;
   gap: 8px;
+  overflow-y: auto;
 }
 
 /* Sidebar Nav Item Styling */
@@ -87,18 +88,9 @@
   color: white !important;
 }
 
-.sidebar-footer {
-  padding: 20px;
-  border-top: 1px solid var(--glass-border);
-}
-
-.logout-btn {
-  width: 100%;
-  border: none;
-  background: transparent;
-  cursor: pointer;
-  color: var(--error);
-  font-size: 1rem;
+.sidebar .logout-btn {
+  margin-top: 0 !important;
+  margin-bottom: 8px !important;
 }
 
 .logout-btn:hover {

@@ -69,15 +69,13 @@ const AdminDashboard = () => {
               {link.icon}
               <span>{link.name}</span>
             </Link>
-          ))}
-        </nav>
-
-        <div className="sidebar-footer">
-          <button className="nav-item logout-btn" onClick={handleLogout}>
+            ))}
+          
+          <button className="nav-item logout-btn" onClick={handleLogout} style={{ marginTop: '8px' }}>
             <LogOut size={20} />
             <span>Logout</span>
           </button>
-        </div>
+        </nav>
       </aside>
 
       {/* Main Content Area */}

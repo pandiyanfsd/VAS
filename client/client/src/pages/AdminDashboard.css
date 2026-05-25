@@ -21,6 +21,8 @@
   border-bottom: none;
   z-index: 100;
   transition: transform 0.3s ease;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 .sidebar-header {
@@ -36,8 +38,8 @@
   letter-spacing: 1px;
 }
 
-.sidebar-nav {
-  flex: 1;
+.admin-layout .sidebar-nav {
+  flex: none !important;
   padding: 20px 10px;
   display: flex;
   flex-direction: column;
@@ -87,7 +89,8 @@
   color: white !important;
 }
 
-.sidebar-footer {
+.admin-layout .sidebar-footer {
+  margin-top: 0 !important;
   padding: 20px;
   border-top: 1px solid var(--glass-border);
 }
