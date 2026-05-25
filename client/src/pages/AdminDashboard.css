@@ -89,10 +89,52 @@
   color: white !important;
 }
 
-.sidebar .logout-btn {
-  margin-top: -8px !important;
-  margin-bottom: 0 !important;
+.manage-expenses-container {
+  padding: 20px 0;
+  max-width: 1400px;
+  margin: 0 auto;
 }
+
+@media (max-width: 768px) {
+  .toolbar button {
+  width: 100%;
+  justify-content: center;
+}
+
+.toolbar .filter-controls {
+  flex-direction: column !important;
+  gap: 12px !important;
+}
+.toolbar .filter-controls > div {
+  width: 100% !important;
+}
+
+.ledger-card table th,
+.ledger-card table td {
+  padding: 8px 6px !important;
+  font-size: 0.75rem !important;
+}
+
+
+    gap: 12px !important;
+    align-items: stretch !important;
+  }
+  .toolbar > div {
+    width: 100% !important;
+  }
+  .ledger-card {
+    padding: 16px !important;
+  }
+  .ledger-card table th,
+  .ledger-card table td {
+    padding: 12px 8px !important;
+    font-size: 0.8rem !important;
+  }
+  .manage-expenses-container {
+    padding: 10px 0 !important;
+  }
+}
+
 
 .logout-btn:hover {
   background: rgba(239, 68, 68, 0.1);
