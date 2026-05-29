@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import axios from 'axios';
-import { Search, Plus, Edit2, Trash2, X, Users, FileSpreadsheet, FileText, User, Baby } from 'lucide-react';
+import { Search, Plus, Edit2, Trash2, X, Users, FileSpreadsheet, FileText, User, Baby, Shield, Lock, Eye, EyeOff } from 'lucide-react';
 import './ManageMembers.css';
 
 const ManageMembers = () => {
@@ -14,13 +14,46 @@ const ManageMembers = () => {
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
-  const [editId, setEditId] = useState(null);
+  const [showPassword, setShowPassword] = useState(false);
   const [selectedMember, setSelectedMember] = useState(null);
   const [selectedIndividualId, setSelectedIndividualId] = useState(null);
   const [memberToDelete, setMemberToDelete] = useState(null);
   const [subMemberToDelete, setSubMemberToDelete] = useState(null);
+  const [resetMember, setResetMember] = useState(null);
+  const [resetPassword, setResetPassword] = useState('');
+  const [showResetModal, setShowResetModal] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
-  const [loading, setLoading] = useState(false);
+
+  // Open reset password modal
+  const openResetModal = (member) => {
+    setResetMember(member);
+    setResetPassword('');
+    setShowResetModal(true);
+  };
+
+  const handleResetSubmit = async (e) => {
+    e.preventDefault();
+    if (!resetPassword) {
+      setErrorMsg('Please enter a new password');
+      return;
+    }
+    setLoading(true);
+    try {
+      await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/auth/admin/resetPassword/member/${resetMember._id}`,
+        { newPassword: resetPassword },
+        { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }
+      );
+      alert('Password reset successfully');
+      fetchMembers();
+      setShowResetModal(false);
+    } catch (err) {
+      setErrorMsg(err.response?.data?.error || 'Reset failed');
+    } finally {
+      setLoading(false);
+    }
+  };
+  const [editId, setEditId] = useState('');
+const [loading, setLoading] = useState(false);
   
   // Financial Dues & Funds States
   const [dues, setDues] = useState([]);
@@ -539,7 +572,7 @@ const ManageMembers = () => {
   };
 
   return (
-    <div className="manage-members-container animate-fade-in">
+    <div className="manage-members-container">
       <div className="header-actions">
         <div className="search-box glass-panel">
           <Search size={18} />
@@ -721,6 +754,9 @@ const ManageMembers = () => {
                 <div className="actions-cell">
                   <button className="icon-btn edit" onClick={(e) => { e.stopPropagation(); handleEdit(member); }}><Edit2 size={16} /></button>
                   <button className="icon-btn delete" onClick={(e) => { e.stopPropagation(); setMemberToDelete(member); }}><Trash2 size={16} /></button>
+                  <button className="icon-btn reset" onClick={(e) => { e.stopPropagation(); openResetModal(member); }}>
+                    <Shield size={16} />
+                  </button>
                 </div>
               </div>
               <div className="card-body">
@@ -827,7 +863,22 @@ const ManageMembers = () => {
                 </div>
                 <div className="input-group col-span-2">
                   <label>Password</label>
-                  <input type="password" placeholder={isEditMode ? "Leave blank to keep current" : "Password"} className="input-field" name="password" value={formData.password} onChange={handleInputChange} required={!isEditMode} />
+                  <div className="password-wrapper" style={{ position: 'relative' }}>
+                    <Lock size={18} className="input-icon" />
+                    <input 
+                      type={showPassword ? "text" : "password"} 
+                      className="input-field with-icon" 
+                      name="password"
+                      value={formData.password}
+                      onChange={handleInputChange}
+                      required={!isEditMode}
+                      minLength={5}
+                      placeholder={isEditMode ? "Leave blank to keep current" : ""}
+                    />
+                    <button type="button" onClick={() => setShowPassword(!showPassword)} style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', background: 'transparent', border: 'none', cursor: 'pointer' }}>
+                      {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
+                  </div>
                 </div>
               </div>
 
@@ -929,6 +980,43 @@ const ManageMembers = () => {
         </div>,
         document.body
       )}
+{/* Reset Password Modal */}
+{showResetModal && createPortal(
+  <div className="modal-overlay" onClick={() => setShowResetModal(false)}>
+    <div className="modal-content glass-panel animate-fade-in" style={{background: 'linear-gradient(135deg, #1e3a8a, #8b5cf6, #ec4899)', color: '#fff', border: '1px solid rgba(255,255,255,0.2)', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)'}} onClick={e => e.stopPropagation()}>
+      <div className="modal-header" style={{ borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '15px' }}>
+        <h2 style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '1.6rem', color: '#fff', textShadow: '0 2px 4px rgba(0,0,0,0.3)' }}><Shield size={28} color="#fcd34d" /> Reset Password</h2>
+        <button className="icon-btn close-btn" onClick={() => setShowResetModal(false)} style={{ color: '#fff', background: 'rgba(255,255,255,0.1)' }}><X size={20} /></button>
+      </div>
+      <form className="modal-body" onSubmit={handleResetSubmit} style={{ paddingTop: '20px' }}>
+        <p style={{ marginBottom: '20px', color: 'rgba(255,255,255,0.9)', fontSize: '0.95rem' }}>Set a new password for <strong>{resetMember?.name}</strong> (ID: {resetMember?.memberId}).</p>
+        <div className="input-group">
+          <label style={{ color: '#f8fafc' }}>New Password</label>
+          <div className="password-wrapper" style={{ position: 'relative' }}>
+            <Lock size={18} className="input-icon" style={{ color: '#64748b', position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
+            <input 
+              type="text" 
+              className="input-field" 
+              value={resetPassword} 
+              onChange={e => setResetPassword(e.target.value)} 
+              required 
+              minLength={5}
+              style={{ background: 'rgba(255,255,255,0.9)', color: '#0f172a', paddingLeft: '38px', border: 'none', boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.1)' }}
+              placeholder="Enter new password"
+            />
+          </div>
+        </div>
+        <div className="modal-footer" style={{ borderTop: 'none', marginTop: '10px' }}>
+          <button type="button" className="btn-secondary" onClick={() => setShowResetModal(false)} style={{ background: 'rgba(255,255,255,0.1)', color: '#fff', border: '1px solid rgba(255,255,255,0.2)' }} disabled={loading}>Cancel</button>
+          <button type="submit" className="btn-primary" style={{ background: '#fcd34d', color: '#78350f', fontWeight: '800', border: 'none', boxShadow: '0 4px 6px rgba(0,0,0,0.2)' }} disabled={loading}>
+            {loading ? 'Resetting...' : 'Reset Password'}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>,
+  document.body
+)}
 
       {/* Details Modal via Portal */}
       {selectedMember && createPortal(

@@ -1,6 +1,6 @@
 const mongoose = require('mongoose');
 const jwt = require('jsonwebtoken');
-
+const bcrypt = require('bcrypt');
 const cashierSchema = new mongoose.Schema({
   cashierId: {
     type: String,
@@ -25,6 +25,12 @@ const cashierSchema = new mongoose.Schema({
     default: 'cashier',
     enum: ['cashier']
   }
+});
+
+cashierSchema.pre('save', async function () {
+  if (!this.isModified('password')) return;
+  const salt = await bcrypt.genSalt(10);
+  this.password = await bcrypt.hash(this.password, salt);
 });
 
 cashierSchema.methods.generateAuthToken = function () {

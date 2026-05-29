@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { UserCircle, Shield, CreditCard, Lock } from 'lucide-react';
+import { UserCircle, Shield, CreditCard, Lock, Eye, EyeOff } from 'lucide-react';
 import axios from 'axios';
 import './LoginPage.css';
 
@@ -7,8 +7,11 @@ const LoginPage = () => {
   const [role, setRole] = useState('member'); // member, cashier, admin
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  const [showPassword, setShowPassword] = useState(false);
+
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -95,16 +98,23 @@ const LoginPage = () => {
           
           <div className="input-group">
             <label>Password</label>
-            <div className="password-wrapper">
+            <div className="password-wrapper" style={{ position: 'relative' }}>
               <Lock size={18} className="input-icon" />
               <input 
-                type="password" 
+                type={showPassword ? "text" : "password"}
                 className="input-field with-icon" 
                 placeholder="Enter password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
               />
+              <button 
+                type="button" 
+                onClick={() => setShowPassword(!showPassword)} 
+                style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', background: 'transparent', border: 'none', cursor: 'pointer' }}
+              >
+                {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
             </div>
           </div>
 

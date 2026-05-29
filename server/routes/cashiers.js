@@ -22,17 +22,20 @@ router.post('/', async (req, res) => {
 router.put('/:id', async (req, res) => {
   try {
     const { name, phone, password } = req.body;
-    let updateData = { name, phone };
-    if (password) updateData.password = password; // Only update password if provided
-
-    const cashier = await Cashier.findByIdAndUpdate(
-      req.params.id, 
-      updateData, 
-      { new: true }
-    );
+    
+    const cashier = await Cashier.findById(req.params.id);
     if (!cashier) return res.status(404).send('Cashier not found');
+
+    cashier.name = name;
+    cashier.phone = phone;
+    if (password) {
+      cashier.password = password; // triggers pre('save') hook to hash it exactly once
+    }
+
+    await cashier.save();
     res.send(cashier);
   } catch (error) {
+    console.error('[PUT /api/cashiers/:id] Error:', error);
     res.status(500).send('Server error');
   }
 });

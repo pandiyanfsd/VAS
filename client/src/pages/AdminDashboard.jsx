@@ -92,14 +92,14 @@ const AdminDashboard = () => {
 
         <div className="content-body animate-fade-in">
           <Routes>
-            <Route path="/" element={<Overview />} />
-            <Route path="/members" element={<ManageMembers />} />
-            <Route path="/cashiers" element={<ManageCashiers />} />
-            <Route path="/funds" element={<ManageFunds />} />
-            <Route path="/treasury" element={<TreasuryHandover />} />
-            <Route path="/expenses" element={<ManageExpenses />} />
-            <Route path="/reports" element={<DetailedReports />} />
-            <Route path="/summary" element={<Summary />} />
+            <Route index element={<Overview />} />
+            <Route path="members" element={<ManageMembers />} />
+            <Route path="cashiers" element={<ManageCashiers />} />
+            <Route path="funds" element={<ManageFunds />} />
+            <Route path="treasury" element={<TreasuryHandover />} />
+            <Route path="expenses" element={<ManageExpenses />} />
+            <Route path="reports" element={<DetailedReports />} />
+            <Route path="summary" element={<Summary />} />
           </Routes>
         </div>
       </main>

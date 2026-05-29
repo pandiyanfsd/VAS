@@ -15,7 +15,8 @@ import {
   Receipt,
   User,
   ArrowRight,
-  RefreshCw
+  RefreshCw,
+  Lock
 } from 'lucide-react';
 import './AdminDashboard.css'; // Reuses structural sidebar layouts
 import ManageExpenses from '../components/ManageExpenses';
@@ -25,6 +26,13 @@ const CashierDashboard = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('collect'); // collect, receipts, handovers, expenses
   const [cashier, setCashier] = useState(null);
+  
+  // Password change states
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [pwdStatus, setPwdStatus] = useState({ type: '', message: '' });
+  const [pwdLoading, setPwdLoading] = useState(false);
   
   // Financial metrics
   const [stats, setStats] = useState({
@@ -43,11 +51,20 @@ const CashierDashboard = () => {
   // All dues (for totals)
   const [allDues, setAllDues] = useState([]);
 
+  const getTodayDateString = () => {
+    const today = new Date();
+    const yyyy = today.getFullYear();
+    const mm = String(today.getMonth() + 1).padStart(2, '0');
+    const dd = String(today.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+  };
+
   // Payment Form State
   const [paymentSplits, setPaymentSplits] = useState({});
   const [selectedFunds, setSelectedFunds] = useState({});
   const [paymentMode, setPaymentMode] = useState('cash');
   const [paymentNotes, setPaymentNotes] = useState('');
+  const [paymentDate, setPaymentDate] = useState(getTodayDateString());
   const [processingPayment, setProcessingPayment] = useState(false);
   const [paymentToConfirm, setPaymentToConfirm] = useState(null);
 
@@ -99,6 +116,44 @@ const CashierDashboard = () => {
       fetchMembersList();
     }
   }, [navigate]);
+
+  const handlePasswordChange = async (e) => {
+    e.preventDefault();
+    setPwdStatus({ type: '', message: '' });
+
+    if (newPassword !== confirmPassword) {
+      setPwdStatus({ type: 'error', message: 'Confirm password does not match.' });
+      return;
+    }
+
+    if (newPassword.length < 5) {
+      setPwdStatus({ type: 'error', message: 'Password must be at least 5 characters long.' });
+      return;
+    }
+
+    setPwdLoading(true);
+    try {
+      const token = localStorage.getItem('token');
+      const res = await axios.post(
+        `${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/auth/cashier/change-password`,
+        { currentPassword, newPassword },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      setPwdStatus({ type: 'success', message: res.data.message || 'Password updated successfully.' });
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+    } catch (err) {
+      console.error('[CHANGE PASSWORD ERROR]:', err);
+      setPwdStatus({
+        type: 'error',
+        message: err.response?.data?.error || 'Failed to update password. Verify your current password.'
+      });
+    } finally {
+      setPwdLoading(false);
+    }
+  };
 
   // 2. Fetch Financial summaries & statistics for this cashier
   const fetchFinancials = async (cashierId) => {
@@ -174,6 +229,7 @@ const CashierDashboard = () => {
     setAllotmentMode('auto');
     setFundTypeFilter('all');
     setFundNameSearch('');
+    setPaymentDate(getTodayDateString());
     try {
       const res = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/dues/member/${member._id}`);
       const all = res.data;
@@ -224,7 +280,8 @@ const CashierDashboard = () => {
       mode: 'auto',
       payload: {
         memberId: selectedMember._id, cashierId: cashier._id, paymentSource: 'cashier',
-        paymentMode, splitDetails, notes: paymentNotes || 'Auto-Allotment Payment'
+        paymentMode, splitDetails, notes: paymentNotes || 'Auto-Allotment Payment',
+        paymentDate: paymentDate
       },
       total: autoSplitPreview.reduce((s, x) => s + x.allocate, 0)
     });
@@ -289,7 +346,8 @@ const CashierDashboard = () => {
         paymentSource: 'cashier',
         paymentMode,
         splitDetails,
-        notes: paymentNotes || 'Counter Payment'
+        notes: paymentNotes || 'Counter Payment',
+        paymentDate: paymentDate
       },
       total: totalToPay
     });
@@ -300,7 +358,14 @@ const CashierDashboard = () => {
     setProcessingPayment(true);
     setErrorMsg('');
     try {
-      const res = await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/payments`, paymentToConfirm.payload);
+      const payload = { ...paymentToConfirm.payload };
+      const dateStr = payload.paymentDate || getTodayDateString();
+      const [year, month, day] = dateStr.split('-').map(Number);
+      const now = new Date();
+      const localPaymentDate = new Date(year, month - 1, day, now.getHours(), now.getMinutes(), now.getSeconds(), now.getMilliseconds());
+      payload.paymentDate = localPaymentDate.toISOString();
+
+      const res = await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/payments`, payload);
       
       // Show receipt modal immediately
       setCurrentReceipt(res.data.receipt);
@@ -309,6 +374,7 @@ const CashierDashboard = () => {
       // Clear payment selections & reload
       setSuccessMsg("Payment processed successfully! Receipt generated.");
       setPaymentNotes('');
+      setPaymentDate(getTodayDateString());
       setSelectedMember(null);
       setUnpaidDues([]);
       setShowAutoPreview(false);
@@ -388,6 +454,15 @@ const CashierDashboard = () => {
             <Receipt size={20} />
             <span>Manage Expenses</span>
           </button>
+
+          <button 
+            onClick={() => { setActiveTab('password'); setIsMobileMenuOpen(false); }}
+            className={`nav-item ${activeTab === 'password' ? 'active' : ''}`}
+            style={{ width: '100%', border: 'none', background: 'transparent', cursor: 'pointer', textAlign: 'left' }}
+          >
+            <Lock size={20} />
+            <span>Update Password</span>
+          </button>
         </nav>
 
         <div className="sidebar-footer">
@@ -406,6 +481,7 @@ const CashierDashboard = () => {
             {activeTab === 'receipts' && 'My Receipt Logs'}
             {activeTab === 'handovers' && 'My Treasury Handovers'}
             {activeTab === 'expenses' && 'Manage Expenses'}
+            {activeTab === 'password' && 'Account Security & Password'}
           </h1>
           <div className="user-profile">
             <div className="avatar" style={{ background: '#38bdf8' }}>C</div>
@@ -416,7 +492,7 @@ const CashierDashboard = () => {
         <div className="content-body animate-fade-in">
           
           {/* 1. Real-time Cashier Treasury Stats Banner */}
-          {activeTab !== 'collect' && activeTab !== 'expenses' && (
+          {activeTab !== 'collect' && activeTab !== 'expenses' && activeTab !== 'password' && (
             <div className="demographic-banner glass-panel mb-6 treasury-banner" style={{ 
               background: activeTab === 'receipts' 
                 ? 'linear-gradient(135deg, #1e1b4b 0%, #31115a 100%)' // Premium Dark Purple/Plum theme
@@ -650,6 +726,11 @@ const CashierDashboard = () => {
                               </div>
                               <div className="responsive-grid-payment" style={{ marginBottom: '20px' }}>
                                 <div>
+                                  <label style={{ fontSize: '0.8rem', fontWeight: '800', color: '#1e293b', textTransform: 'uppercase', display: 'block', marginBottom: '6px' }}>Payment Date</label>
+                                  <input type="date" value={paymentDate} onChange={e => setPaymentDate(e.target.value)}
+                                    style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: '1px solid #cbd5e1', fontWeight: '600', color: '#0f172a', outline: 'none', boxSizing: 'border-box' }} />
+                                </div>
+                                <div>
                                   <label style={{ fontSize: '0.8rem', fontWeight: '800', color: '#1e293b', textTransform: 'uppercase', display: 'block', marginBottom: '6px' }}>Payment Channel</label>
                                   <select value={paymentMode} onChange={e => setPaymentMode(e.target.value)}
                                     style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: '1px solid #cbd5e1', fontWeight: '700', color: '#0f172a', background: 'white', outline: 'none' }}>
@@ -752,6 +833,11 @@ const CashierDashboard = () => {
 
                               {/* Payment channel + notes + submit */}
                               <div className="responsive-grid-payment" style={{ marginBottom: '20px', borderTop: '1px solid #f1f5f9', paddingTop: '20px' }}>
+                                <div>
+                                  <label style={{ fontSize: '0.8rem', fontWeight: '800', color: '#1e293b', textTransform: 'uppercase', display: 'block', marginBottom: '6px' }}>Payment Date</label>
+                                  <input type="date" value={paymentDate} onChange={e => setPaymentDate(e.target.value)}
+                                    style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: '1px solid #cbd5e1', fontWeight: '600', color: '#0f172a', outline: 'none', boxSizing: 'border-box' }} />
+                                </div>
                                 <div>
                                   <label style={{ fontSize: '0.8rem', fontWeight: '800', color: '#1e293b', textTransform: 'uppercase', display: 'block', marginBottom: '6px' }}>Payment Channel</label>
                                   <select value={paymentMode} onChange={e => setPaymentMode(e.target.value)}
@@ -918,6 +1004,99 @@ const CashierDashboard = () => {
           {/* TAB 4: Manage Expenses */}
           {activeTab === 'expenses' && (
             <ManageExpenses isCashier={true} currentCashier={cashier} />
+          )}
+
+          {/* TAB 5: Update Password */}
+          {activeTab === 'password' && (
+            <div className="glass-panel p-8 animate-fade-in" style={{ background: 'white', borderRadius: '24px', maxWidth: '480px', margin: '0 auto', boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.05)', border: '1px solid #cbd5e1' }}>
+              <h3 style={{ fontSize: '1.25rem', fontWeight: '950', color: '#0f172a', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Lock size={20} color="var(--primary-color)" /> Update Password
+              </h3>
+              <p style={{ color: '#64748b', fontSize: '0.85rem', fontWeight: '600', marginBottom: '24px' }}>
+                Change your login credentials to protect your cashier terminal access.
+              </p>
+
+              {pwdStatus.message && (
+                <div style={{
+                  padding: '12px 16px',
+                  borderRadius: '10px',
+                  fontSize: '0.85rem',
+                  fontWeight: '700',
+                  marginBottom: '20px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  border: pwdStatus.type === 'success' ? '1px solid rgba(16, 185, 129, 0.2)' : '1px solid rgba(239, 68, 68, 0.2)',
+                  background: pwdStatus.type === 'success' ? '#ecfdf5' : '#fef2f2',
+                  color: pwdStatus.type === 'success' ? '#10b981' : '#ef4444'
+                }}>
+                  {pwdStatus.type === 'success' ? <CheckCircle size={16} color="#10b981" /> : <AlertCircle size={16} color="#ef4444" />}
+                  <span>{pwdStatus.message}</span>
+                </div>
+              )}
+
+              <form onSubmit={handlePasswordChange} style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  <label style={{ fontSize: '0.82rem', fontWeight: '700', color: '#475569' }}>Current Password</label>
+                  <input 
+                    type="password"
+                    required
+                    placeholder="Enter current password..."
+                    value={currentPassword}
+                    onChange={(e) => setCurrentPassword(e.target.value)}
+                    style={{ padding: '11px 14px', borderRadius: '10px', border: '1px solid #cbd5e1', outline: 'none', fontSize: '0.9rem', width: '100%', boxSizing: 'border-box' }}
+                  />
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  <label style={{ fontSize: '0.82rem', fontWeight: '700', color: '#475569' }}>New Password</label>
+                  <input 
+                    type="password"
+                    required
+                    placeholder="Min 5 characters..."
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    style={{ padding: '11px 14px', borderRadius: '10px', border: '1px solid #cbd5e1', outline: 'none', fontSize: '0.9rem', width: '100%', boxSizing: 'border-box' }}
+                  />
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  <label style={{ fontSize: '0.82rem', fontWeight: '700', color: '#475569' }}>Confirm New Password</label>
+                  <input 
+                    type="password"
+                    required
+                    placeholder="Confirm new password..."
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    style={{ padding: '11px 14px', borderRadius: '10px', border: '1px solid #cbd5e1', outline: 'none', fontSize: '0.9rem', width: '100%', boxSizing: 'border-box' }}
+                  />
+                </div>
+
+                <button 
+                  type="submit"
+                  disabled={pwdLoading}
+                  style={{ 
+                    background: 'var(--primary-color)', 
+                    color: 'white', 
+                    border: 'none', 
+                    padding: '12px', 
+                    borderRadius: '12px', 
+                    fontWeight: '800', 
+                    cursor: pwdLoading ? 'not-allowed' : 'pointer', 
+                    fontSize: '0.9rem', 
+                    marginTop: '8px',
+                    boxShadow: '0 4px 10px rgba(79, 70, 229, 0.2)',
+                    display: 'flex',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    gap: '8px',
+                    transition: 'all 0.2s'
+                  }}
+                >
+                  {pwdLoading ? 'Saving...' : 'Update Password'}
+                </button>
+              </form>
+            </div>
           )}
 
         </div>
@@ -1226,9 +1405,13 @@ const CashierDashboard = () => {
                   <span>Funds Count:</span>
                   <strong style={{ color: '#0f172a' }}>{paymentToConfirm.payload.splitDetails.length} items</strong>
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
                   <span>Mode:</span>
                   <strong style={{ color: '#0f172a', textTransform: 'capitalize' }}>{paymentMode}</strong>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span>Date:</span>
+                  <strong style={{ color: '#0f172a' }}>{paymentDate ? new Date(paymentDate).toLocaleDateString() : new Date().toLocaleDateString()}</strong>
                 </div>
               </div>
             </div>

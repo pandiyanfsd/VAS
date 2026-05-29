@@ -1,6 +1,6 @@
 const mongoose = require('mongoose');
 const jwt = require('jsonwebtoken');
-
+const bcrypt = require('bcrypt');
 const adminSchema = new mongoose.Schema({
   name: {
     type: String,
@@ -21,6 +21,11 @@ const adminSchema = new mongoose.Schema({
     default: 'admin',
     enum: ['admin'] // useful for future extension if needed
   }
+});
+adminSchema.pre('save', async function () {
+  if (!this.isModified('password')) return;
+  const salt = await bcrypt.genSalt(10);
+  this.password = await bcrypt.hash(this.password, salt);
 });
 
 // Generate JWT with _id and role

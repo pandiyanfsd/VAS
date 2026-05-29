@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 const jwt = require('jsonwebtoken');
+const bcrypt = require('bcrypt');
 
 const memberSchema = new mongoose.Schema({
   memberId: {
@@ -47,6 +48,12 @@ const memberSchema = new mongoose.Schema({
   profile_img: String,
   cloudinary_id: String,
   exemptedFunds: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Fund' }]
+});
+
+memberSchema.pre('save', async function () {
+  if (!this.isModified('password')) return;
+  const salt = await bcrypt.genSalt(10);
+  this.password = await bcrypt.hash(this.password, salt);
 });
 
 memberSchema.methods.generateAuthToken = function () {

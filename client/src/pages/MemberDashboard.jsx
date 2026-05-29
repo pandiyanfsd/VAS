@@ -21,7 +21,8 @@ import {
   Edit,
   Trash2,
   Search,
-  Filter
+  Filter,
+  Lock
 } from 'lucide-react';
 import './MemberDashboard.css';
 
@@ -30,6 +31,13 @@ const MemberDashboard = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('overview'); // overview, dues, receipts, card, centralFinancials
   const [member, setMember] = useState(null);
+  
+  // Password change states
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [pwdStatus, setPwdStatus] = useState({ type: '', message: '' });
+  const [pwdLoading, setPwdLoading] = useState(false);
   
   // Data states
   const [dues, setDues] = useState([]);
@@ -81,6 +89,44 @@ const MemberDashboard = () => {
       fetchMemberData(parsedUser._id);
     }
   }, [navigate]);
+
+  const handlePasswordChange = async (e) => {
+    e.preventDefault();
+    setPwdStatus({ type: '', message: '' });
+
+    if (newPassword !== confirmPassword) {
+      setPwdStatus({ type: 'error', message: 'Confirm password does not match.' });
+      return;
+    }
+
+    if (newPassword.length < 5) {
+      setPwdStatus({ type: 'error', message: 'Password must be at least 5 characters long.' });
+      return;
+    }
+
+    setPwdLoading(true);
+    try {
+      const token = localStorage.getItem('token');
+      const res = await axios.post(
+        `${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/auth/member/change-password`,
+        { currentPassword, newPassword },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      setPwdStatus({ type: 'success', message: res.data.message || 'Password updated successfully.' });
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+    } catch (err) {
+      console.error('[CHANGE PASSWORD ERROR]:', err);
+      setPwdStatus({
+        type: 'error',
+        message: err.response?.data?.error || 'Failed to update password. Verify your current password.'
+      });
+    } finally {
+      setPwdLoading(false);
+    }
+  };
 
   // 2. Fetch ONLY this family's own profile, dues, and payment history
   const fetchMemberData = async (memberId) => {
@@ -334,6 +380,14 @@ const MemberDashboard = () => {
             <span>Membership Card</span>
           </button>
 
+          <button 
+            onClick={() => { setActiveTab('password'); setIsMobileMenuOpen(false); }}
+            className={`nav-item ${activeTab === 'password' ? 'active' : ''}`}
+          >
+            <Lock size={20} />
+            <span>Update Password</span>
+          </button>
+
           {memberFinancialsVisible && (
             <button 
               onClick={() => { setActiveTab('centralFinancials'); setIsMobileMenuOpen(false); }}
@@ -362,6 +416,7 @@ const MemberDashboard = () => {
             {activeTab === 'dues' && 'My Family Dues Ledger'}
             {activeTab === 'receipts' && 'My Payment Receipts History'}
             {activeTab === 'card' && 'My Digital Membership Card'}
+            {activeTab === 'password' && 'Account Security & Password'}
             {activeTab === 'centralFinancials' && 'Village Council Central Treasury'}
           </h1>
           <div className="user-profile">
@@ -985,6 +1040,99 @@ const MemberDashboard = () => {
                     </div>
                   )}
                 </div>
+              </div>
+            )}
+
+            {/* TAB 6: Update Password */}
+            {activeTab === 'password' && (
+              <div className="glass-panel p-8 animate-fade-in" style={{ background: 'white', borderRadius: '24px', maxWidth: '480px', margin: '0 auto', boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.05)' }}>
+                <h3 style={{ fontSize: '1.25rem', fontWeight: '950', color: '#0f172a', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Lock size={20} color="var(--primary-color)" /> Update Password
+                </h3>
+                <p style={{ color: '#64748b', fontSize: '0.85rem', fontWeight: '600', marginBottom: '24px' }}>
+                  Change your login credentials to protect your digital villager account.
+                </p>
+
+                {pwdStatus.message && (
+                  <div style={{
+                    padding: '12px 16px',
+                    borderRadius: '10px',
+                    fontSize: '0.85rem',
+                    fontWeight: '700',
+                    marginBottom: '20px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    border: pwdStatus.type === 'success' ? '1px solid rgba(16, 185, 129, 0.2)' : '1px solid rgba(239, 68, 68, 0.2)',
+                    background: pwdStatus.type === 'success' ? '#ecfdf5' : '#fef2f2',
+                    color: pwdStatus.type === 'success' ? '#10b981' : '#ef4444'
+                  }}>
+                    {pwdStatus.type === 'success' ? <CheckCircle2 size={16} /> : <AlertCircle size={16} />}
+                    <span>{pwdStatus.message}</span>
+                  </div>
+                )}
+
+                <form onSubmit={handlePasswordChange} style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <label style={{ fontSize: '0.82rem', fontWeight: '700', color: '#475569' }}>Current Password</label>
+                    <input 
+                      type="password"
+                      required
+                      placeholder="Enter current password..."
+                      value={currentPassword}
+                      onChange={(e) => setCurrentPassword(e.target.value)}
+                      style={{ padding: '11px 14px', borderRadius: '10px', border: '1px solid #cbd5e1', outline: 'none', fontSize: '0.9rem', width: '100%', boxSizing: 'border-box' }}
+                    />
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <label style={{ fontSize: '0.82rem', fontWeight: '700', color: '#475569' }}>New Password</label>
+                    <input 
+                      type="password"
+                      required
+                      placeholder="Min 5 characters..."
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      style={{ padding: '11px 14px', borderRadius: '10px', border: '1px solid #cbd5e1', outline: 'none', fontSize: '0.9rem', width: '100%', boxSizing: 'border-box' }}
+                    />
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <label style={{ fontSize: '0.82rem', fontWeight: '700', color: '#475569' }}>Confirm New Password</label>
+                    <input 
+                      type="password"
+                      required
+                      placeholder="Confirm new password..."
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      style={{ padding: '11px 14px', borderRadius: '10px', border: '1px solid #cbd5e1', outline: 'none', fontSize: '0.9rem', width: '100%', boxSizing: 'border-box' }}
+                    />
+                  </div>
+
+                  <button 
+                    type="submit"
+                    disabled={pwdLoading}
+                    style={{ 
+                      background: 'var(--primary-color)', 
+                      color: 'white', 
+                      border: 'none', 
+                      padding: '12px', 
+                      borderRadius: '12px', 
+                      fontWeight: '800', 
+                      cursor: pwdLoading ? 'not-allowed' : 'pointer', 
+                      fontSize: '0.9rem', 
+                      marginTop: '8px',
+                      boxShadow: '0 4px 10px rgba(79, 70, 229, 0.2)',
+                      display: 'flex',
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                      gap: '8px',
+                      transition: 'all 0.2s'
+                    }}
+                  >
+                    {pwdLoading ? 'Saving...' : 'Update Password'}
+                  </button>
+                </form>
               </div>
             )}
           </div>

@@ -57,7 +57,7 @@ paymentSchema.pre('save', async function() {
     );
     
     // Format: REC-YYYYMMDD-SEQ (e.g., REC-20260516-1001)
-    const date = new Date();
+    const date = doc.paymentDate || new Date();
     const dateStr = date.getFullYear().toString() + 
                     String(date.getMonth() + 1).padStart(2, '0') + 
                     String(date.getDate()).padStart(2, '0');

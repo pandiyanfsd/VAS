@@ -43,11 +43,20 @@ const CashierDashboard = () => {
   // All dues (for totals)
   const [allDues, setAllDues] = useState([]);
 
+  const getTodayDateString = () => {
+    const today = new Date();
+    const yyyy = today.getFullYear();
+    const mm = String(today.getMonth() + 1).padStart(2, '0');
+    const dd = String(today.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+  };
+
   // Payment Form State
   const [paymentSplits, setPaymentSplits] = useState({});
   const [selectedFunds, setSelectedFunds] = useState({});
   const [paymentMode, setPaymentMode] = useState('cash');
   const [paymentNotes, setPaymentNotes] = useState('');
+  const [paymentDate, setPaymentDate] = useState(getTodayDateString());
   const [processingPayment, setProcessingPayment] = useState(false);
   const [paymentToConfirm, setPaymentToConfirm] = useState(null);
 
@@ -174,6 +183,7 @@ const CashierDashboard = () => {
     setAllotmentMode('auto');
     setFundTypeFilter('all');
     setFundNameSearch('');
+    setPaymentDate(getTodayDateString());
     try {
       const res = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/dues/member/${member._id}`);
       const all = res.data;
@@ -224,7 +234,7 @@ const CashierDashboard = () => {
       mode: 'auto',
       payload: {
         memberId: selectedMember._id, cashierId: cashier._id, paymentSource: 'cashier',
-        paymentMode, splitDetails, notes: paymentNotes || 'Auto-Allotment Payment'
+        paymentMode, splitDetails, notes: paymentNotes || 'Auto-Allotment Payment', paymentDate,
       },
       total: autoSplitPreview.reduce((s, x) => s + x.allocate, 0)
     });
@@ -289,7 +299,8 @@ const CashierDashboard = () => {
         paymentSource: 'cashier',
         paymentMode,
         splitDetails,
-        notes: paymentNotes || 'Counter Payment'
+        notes: paymentNotes || 'Counter Payment',
+        paymentDate,
       },
       total: totalToPay
     });
@@ -300,7 +311,14 @@ const CashierDashboard = () => {
     setProcessingPayment(true);
     setErrorMsg('');
     try {
-      const res = await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/payments`, paymentToConfirm.payload);
+      const payload = { ...paymentToConfirm.payload };
+      const dateStr = payload.paymentDate || getTodayDateString();
+      const [year, month, day] = dateStr.split('-').map(Number);
+      const now = new Date();
+      const localPaymentDate = new Date(year, month - 1, day, now.getHours(), now.getMinutes(), now.getSeconds(), now.getMilliseconds());
+      payload.paymentDate = localPaymentDate.toISOString();
+
+      const res = await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/payments`, payload);
       
       // Show receipt modal immediately
       setCurrentReceipt(res.data.receipt);
@@ -309,6 +327,7 @@ const CashierDashboard = () => {
       // Clear payment selections & reload
       setSuccessMsg("Payment processed successfully! Receipt generated.");
       setPaymentNotes('');
+      setPaymentDate(getTodayDateString());
       setSelectedMember(null);
       setUnpaidDues([]);
       setShowAutoPreview(false);
@@ -650,6 +669,11 @@ const CashierDashboard = () => {
                               </div>
                               <div className="responsive-grid-payment" style={{ marginBottom: '20px' }}>
                                 <div>
+                                  <label style={{ fontSize: '0.8rem', fontWeight: '800', color: '#1e293b', textTransform: 'uppercase', display: 'block', marginBottom: '6px' }}>Payment Date</label>
+                                  <input type="date" value={paymentDate} onChange={e => setPaymentDate(e.target.value)}
+                                    style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: '1px solid #cbd5e1', fontWeight: '600', color: '#0f172a', outline: 'none', boxSizing: 'border-box' }} />
+                                </div>
+                                <div>
                                   <label style={{ fontSize: '0.8rem', fontWeight: '800', color: '#1e293b', textTransform: 'uppercase', display: 'block', marginBottom: '6px' }}>Payment Channel</label>
                                   <select value={paymentMode} onChange={e => setPaymentMode(e.target.value)}
                                     style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: '1px solid #cbd5e1', fontWeight: '700', color: '#0f172a', background: 'white', outline: 'none' }}>
@@ -752,6 +776,11 @@ const CashierDashboard = () => {
 
                               {/* Payment channel + notes + submit */}
                               <div className="responsive-grid-payment" style={{ marginBottom: '20px', borderTop: '1px solid #f1f5f9', paddingTop: '20px' }}>
+                                <div>
+                                  <label style={{ fontSize: '0.8rem', fontWeight: '800', color: '#1e293b', textTransform: 'uppercase', display: 'block', marginBottom: '6px' }}>Payment Date</label>
+                                  <input type="date" value={paymentDate} onChange={e => setPaymentDate(e.target.value)}
+                                    style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: '1px solid #cbd5e1', fontWeight: '600', color: '#0f172a', outline: 'none', boxSizing: 'border-box' }} />
+                                </div>
                                 <div>
                                   <label style={{ fontSize: '0.8rem', fontWeight: '800', color: '#1e293b', textTransform: 'uppercase', display: 'block', marginBottom: '6px' }}>Payment Channel</label>
                                   <select value={paymentMode} onChange={e => setPaymentMode(e.target.value)}
@@ -1226,9 +1255,13 @@ const CashierDashboard = () => {
                   <span>Funds Count:</span>
                   <strong style={{ color: '#0f172a' }}>{paymentToConfirm.payload.splitDetails.length} items</strong>
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
                   <span>Mode:</span>
                   <strong style={{ color: '#0f172a', textTransform: 'capitalize' }}>{paymentMode}</strong>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span>Date:</span>
+                  <strong style={{ color: '#0f172a' }}>{paymentDate ? new Date(paymentDate).toLocaleDateString() : new Date().toLocaleDateString()}</strong>
                 </div>
               </div>
             </div>

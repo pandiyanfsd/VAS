@@ -46,6 +46,9 @@ router.post('/', async (req, res) => {
     if (error.code === 11000) {
       return res.status(400).send({ error: 'Member with this ID, Family ID, or Phone already exists (duplicate key).' });
     }
+    if (error.name === 'ValidationError') {
+      return res.status(400).send({ error: error.message });
+    }
     res.status(500).send({ error: error.message || 'Failed to create member', details: error.message });
   }
 });
@@ -74,7 +77,7 @@ router.get('/:id', async (req, res) => {
 // Update a member
 router.put('/:id', async (req, res) => {
   try {
-    const { name, phone, subFamilyMembers, familyId, age, gender } = req.body;
+    const { name, phone, subFamilyMembers, familyId, age, gender, password } = req.body;
     
     // Robustly sanitize subFamilyMembers age to prevent casting errors
     const sanitizedSubMembers = (subFamilyMembers || []).map(sub => ({
@@ -82,18 +85,20 @@ router.put('/:id', async (req, res) => {
       age: (sub.age !== '' && sub.age !== null && sub.age !== undefined) ? Number(sub.age) : undefined
     }));
 
-    const member = await Member.findByIdAndUpdate(
-      req.params.id, 
-      { 
-        name, 
-        phone, 
-        subFamilyMembers: sanitizedSubMembers, 
-        familyId, 
-        age: (age !== '' && age !== null && age !== undefined) ? Number(age) : undefined, 
-        gender 
-      }, 
-      { new: true, runValidators: true }
-    );
+    const member = await Member.findById(req.params.id);
+    if (!member) return res.status(404).send({ error: 'Member not found' });
+    member.name = name;
+    member.phone = phone;
+    member.subFamilyMembers = sanitizedSubMembers;
+    member.familyId = familyId;
+    member.age = (age !== '' && age !== null && age !== undefined) ? Number(age) : undefined;
+    member.gender = gender;
+    
+    if (password) {
+      member.password = password; // triggers pre('save') hook to hash it exactly once
+    }
+
+    await member.save();
     
     if (!member) return res.status(404).send({ error: 'Member not found' });
     res.send(member);
@@ -101,6 +106,9 @@ router.put('/:id', async (req, res) => {
     console.error('[PUT /api/members/:id] Error:', error.message);
     if (error.code === 11000) {
       return res.status(400).send({ error: 'Member with this ID, Family ID, or Phone already exists (duplicate key).' });
+    }
+    if (error.name === 'ValidationError') {
+      return res.status(400).send({ error: error.message });
     }
     res.status(500).send({ error: error.message || 'Server error', details: error.message });
   }

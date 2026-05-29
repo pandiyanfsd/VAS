@@ -6,11 +6,19 @@ const { MemberFundDue } = require('../models/memberFundDue');
 // Process a payment (Receipt generation)
 router.post('/', async (req, res) => {
   try {
-    const { memberId, cashierId, paymentSource, paymentMode, splitDetails, notes } = req.body;
+    const { memberId, cashierId, paymentSource, paymentMode, splitDetails, notes, paymentDate } = req.body;
     
     let totalAmountPaid = 0;
     for (const split of splitDetails) {
       totalAmountPaid += split.amountAllocated;
+    }
+
+    let finalPaymentDate = undefined;
+    if (paymentDate) {
+      const parsedDate = new Date(paymentDate);
+      if (!isNaN(parsedDate.getTime())) {
+        finalPaymentDate = parsedDate;
+      }
     }
 
     const payment = new Payment({
@@ -20,7 +28,8 @@ router.post('/', async (req, res) => {
       totalAmountPaid,
       paymentMode,
       splitDetails,
-      notes
+      notes,
+      paymentDate: finalPaymentDate
     });
 
     // Save triggers the auto-increment receipt number
