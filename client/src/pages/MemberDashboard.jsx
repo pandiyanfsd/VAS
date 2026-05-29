@@ -108,7 +108,7 @@ const MemberDashboard = () => {
     try {
       const token = localStorage.getItem('token');
       const res = await axios.post(
-        `${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/auth/member/change-password`,
+        `/api/auth/member/change-password`,
         { currentPassword, newPassword },
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -134,26 +134,26 @@ const MemberDashboard = () => {
     setErrorMsg('');
     try {
       // Fetch only this family's own profile — NOT all members
-      const memberRes = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/members/${memberId}`);
+      const memberRes = await axios.get(`/api/members/${memberId}`);
       setMember(memberRes.data);
 
       // Fetch only this family's dues
-      const duesRes = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/dues/member/${memberId}`);
+      const duesRes = await axios.get(`/api/dues/member/${memberId}`);
       setDues(duesRes.data || []);
 
       // Fetch only this family's payment receipts
-      const paymentsRes = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/payments?memberId=${memberId}`);
+      const paymentsRes = await axios.get(`/api/payments?memberId=${memberId}`);
       setPayments(paymentsRes.data || []);
 
       // Fetch Visibility Setting for Central Financials
       try {
-        const settingRes = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/settings/showMemberCentralFinancials`);
+        const settingRes = await axios.get(`/api/settings/showMemberCentralFinancials`);
         const visible = !!settingRes.data.value;
         setMemberFinancialsVisible(visible);
 
         if (visible) {
           // Fetch central village financials
-          const summaryRes = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/reports/summary`);
+          const summaryRes = await axios.get(`/api/reports/summary`);
           const data = summaryRes.data;
           setCentralStats({
             totalAllotted: (data.totalCollected || 0) + (data.totalPendingDues || 0),
@@ -164,7 +164,7 @@ const MemberDashboard = () => {
           });
 
           // Fetch all central expenses
-          const expensesRes = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/expenses`);
+          const expensesRes = await axios.get(`/api/expenses`);
           // Filter to only approved expenses to display to the member
           const approved = (expensesRes.data || []).filter(e => e.status === 'approved');
           setCentralExpenses(approved);
@@ -223,7 +223,7 @@ const MemberDashboard = () => {
         updatedSubMembers.push(newSub);
       }
 
-      const res = await axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/members/${member._id}`, {
+      const res = await axios.put(`/api/members/${member._id}`, {
         ...member,
         subFamilyMembers: updatedSubMembers
       });
@@ -242,7 +242,7 @@ const MemberDashboard = () => {
 
     try {
       const updatedSubMembers = member.subFamilyMembers.filter((_, idx) => idx !== index);
-      const res = await axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/members/${member._id}`, {
+      const res = await axios.put(`/api/members/${member._id}`, {
         ...member,
         subFamilyMembers: updatedSubMembers
       });

@@ -60,7 +60,7 @@ const ManageCashiers = () => {
 
   const fetchCashiers = async () => {
     try {
-      const res = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/cashiers`);
+      const res = await axios.get(`/api/cashiers`);
       setCashiers(res.data);
     } catch (error) {
       console.error("Error fetching cashiers", error);
@@ -78,9 +78,9 @@ const ManageCashiers = () => {
     setLoading(true);
     try {
       if (isEditMode) {
-        await axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/cashiers/${editId}`, formData);
+        await axios.put(`/api/cashiers/${editId}`, formData);
       } else {
-        await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/cashiers`, formData);
+        await axios.post(`/api/cashiers`, formData);
       }
       setIsModalOpen(false);
       fetchCashiers();
@@ -95,7 +95,7 @@ const ManageCashiers = () => {
     if (!cashierToDelete) return;
     setLoading(true);
     try {
-      await axios.delete(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/cashiers/${cashierToDelete._id}`);
+      await axios.delete(`/api/cashiers/${cashierToDelete._id}`);
       fetchCashiers();
       setCashierToDelete(null);
     } catch (error) {

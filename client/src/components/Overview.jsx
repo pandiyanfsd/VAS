@@ -50,11 +50,11 @@ const Overview = () => {
       setLoading(true);
       try {
         // 1. Fetch Members
-        const membersRes = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/members`);
+        const membersRes = await axios.get(`/api/members`);
         const memberCount = membersRes.data.length;
 
         // 2. Fetch Funds
-        const fundsRes = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/funds`);
+        const fundsRes = await axios.get(`/api/funds`);
         const fundCount = fundsRes.data.length;
         setFunds(fundsRes.data); // Keep all funds for horizontal slider
 
@@ -65,27 +65,27 @@ const Overview = () => {
         });
 
         // 3. Fetch Financial Summary
-        const summaryRes = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/reports/summary`);
+        const summaryRes = await axios.get(`/api/reports/summary`);
         
         // 4. Fetch Recent Payments (Collections)
-        const paymentsRes = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/payments`);
+        const paymentsRes = await axios.get(`/api/payments`);
         // Sort descending by date
         const sortedPayments = paymentsRes.data.sort((a, b) => new Date(b.paymentDate) - new Date(a.paymentDate));
         setRecentPayments(sortedPayments);
 
         // 5. Fetch Recent Expenses
-        const expensesRes = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/expenses`);
+        const expensesRes = await axios.get(`/api/expenses`);
         // Sort descending by date
         const sortedExpenses = expensesRes.data.sort((a, b) => new Date(b.date) - new Date(a.date));
         setRecentExpenses(sortedExpenses);
 
         // 6. Fetch Dues for Ledger
-        const duesRes = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/dues`);
+        const duesRes = await axios.get(`/api/dues`);
         setDues(duesRes.data);
 
         // 7. Fetch Member Financials Visibility Setting
         try {
-          const settingRes = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/settings/showMemberCentralFinancials`);
+          const settingRes = await axios.get(`/api/settings/showMemberCentralFinancials`);
           setShowFinancials(!!settingRes.data.value);
         } catch (err) {
           console.error("Failed to load settings", err);
@@ -115,7 +115,7 @@ const Overview = () => {
   const toggleFinancials = async () => {
     try {
       const newValue = !showFinancials;
-      await axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/settings/showMemberCentralFinancials`, { value: newValue });
+      await axios.put(`/api/settings/showMemberCentralFinancials`, { value: newValue });
       setShowFinancials(newValue);
     } catch (err) {
       console.error("Failed to update settings", err);

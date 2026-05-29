@@ -135,7 +135,7 @@ const CashierDashboard = () => {
     try {
       const token = localStorage.getItem('token');
       const res = await axios.post(
-        `${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/auth/cashier/change-password`,
+        `/api/auth/cashier/change-password`,
         { currentPassword, newPassword },
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -158,7 +158,7 @@ const CashierDashboard = () => {
   // 2. Fetch Financial summaries & statistics for this cashier
   const fetchFinancials = async (cashierId) => {
     try {
-      const res = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/surrenders/summary`);
+      const res = await axios.get(`/api/surrenders/summary`);
       const myStats = res.data.find(c => c._id === cashierId);
       if (myStats) {
         setStats({
@@ -174,7 +174,7 @@ const CashierDashboard = () => {
 
   const fetchMembersList = async () => {
     try {
-      const res = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/members`);
+      const res = await axios.get(`/api/members`);
       setAllMembers(res.data || []);
     } catch (error) {
       console.error("Error fetching villagers list", error);
@@ -194,7 +194,7 @@ const CashierDashboard = () => {
   const fetchReceipts = async () => {
     setLoadingHistory(true);
     try {
-      const res = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/payments?cashierId=${cashier._id}`);
+      const res = await axios.get(`/api/payments?cashierId=${cashier._id}`);
       setReceiptHistory(res.data || []);
     } catch (error) {
       console.error("Error loading receipt history", error);
@@ -206,7 +206,7 @@ const CashierDashboard = () => {
   const fetchHandovers = async () => {
     setLoadingHistory(true);
     try {
-      const res = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/surrenders`);
+      const res = await axios.get(`/api/surrenders`);
       // Filter handovers specifically recorded for this cashier
       const filtered = res.data.filter(h => h.cashierId?._id === cashier._id);
       setHandoverHistory(filtered);
@@ -231,7 +231,7 @@ const CashierDashboard = () => {
     setFundNameSearch('');
     setPaymentDate(getTodayDateString());
     try {
-      const res = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/dues/member/${member._id}`);
+      const res = await axios.get(`/api/dues/member/${member._id}`);
       const all = res.data;
       const unpaid = all.filter(d => d.status !== 'paid');
       setAllDues(all);
@@ -365,7 +365,7 @@ const CashierDashboard = () => {
       const localPaymentDate = new Date(year, month - 1, day, now.getHours(), now.getMinutes(), now.getSeconds(), now.getMilliseconds());
       payload.paymentDate = localPaymentDate.toISOString();
 
-      const res = await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/payments`, payload);
+      const res = await axios.post(`/api/payments`, payload);
       
       // Show receipt modal immediately
       setCurrentReceipt(res.data.receipt);

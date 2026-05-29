@@ -82,7 +82,7 @@ const ManageFunds = () => {
 
   const fetchFunds = async () => {
     try {
-      const res = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/funds`);
+      const res = await axios.get(`/api/funds`);
       setFunds(res.data);
     } catch (error) {
       console.error("Error fetching funds", error);
@@ -162,9 +162,9 @@ const ManageFunds = () => {
     setDuplicateWarning(false);
     try {
       if (isEditMode) {
-        await axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/funds/${editId}`, payload);
+        await axios.put(`/api/funds/${editId}`, payload);
       } else {
-        await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/funds`, payload);
+        await axios.post(`/api/funds`, payload);
       }
       setIsModalOpen(false);
       fetchFunds();
@@ -180,7 +180,7 @@ const ManageFunds = () => {
     if (!fundToDelete) return;
     setLoading(true);
     try {
-      await axios.delete(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/funds/${fundToDelete._id}`);
+      await axios.delete(`/api/funds/${fundToDelete._id}`);
       fetchFunds();
       setFundToDelete(null);
     } catch (error) {
