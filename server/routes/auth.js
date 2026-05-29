@@ -69,6 +69,11 @@ router.post('/member/login', async (req, res) => {
   try {
     // Can login with phone or memberId
     const { identifier, password } = req.body; 
+
+    if (identifier && (identifier.toLowerCase() === 'admin' || identifier.toLowerCase() === 'superadmin')) {
+      return res.status(400).send({ error: 'Please select the "Admin" tab above to log in as an administrator.' });
+    }
+
     const member = await Member.findOne({
       $or: [{ phone: identifier }, { memberId: identifier }]
     });
