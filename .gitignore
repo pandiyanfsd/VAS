@@ -1,0 +1,22 @@
+# Node dependencies
+node_modules/
+server/node_modules/
+client/node_modules/
+
+# Environment files - NEVER commit these!
+server/.env
+.env
+.env.local
+.env.*.local
+
+# Build output
+client/dist/
+client/dist-ssr/
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS files
+.DS_Store
+Thumbs.db
