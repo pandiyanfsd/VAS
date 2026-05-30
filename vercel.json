@@ -1,10 +1,4 @@
 {
-  "functions": {
-    "api/[...slug].js": {
-      "maxDuration": 30,
-      "memory": 512
-    }
-  },
   "routes": [
     {
       "src": "/api/(.*)",

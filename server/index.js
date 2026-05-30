@@ -17,35 +17,14 @@ app.use(cors({
 
 const { createSuperAdmin } = require('./services/superAdmin');
 
-// Database connection with caching for Vercel serverless
+// Database connection
 const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/VAS_NEW';
-
-let isConnected = false;
-
-async function connectDB() {
-  // Reuse existing connection if available (critical for serverless cold starts)
-  if (isConnected && mongoose.connection.readyState === 1) {
-    return;
-  }
-  // Use global cache to survive across warm serverless invocations
-  if (global._mongooseConnection) {
-    await global._mongooseConnection;
-    isConnected = true;
-    return;
-  }
-  global._mongooseConnection = mongoose.connect(MONGO_URI, {
-    maxPoolSize: 10,
-    serverSelectionTimeoutMS: 5000,
-    socketTimeoutMS: 45000,
-  });
-  await global._mongooseConnection;
-  isConnected = true;
-  console.log('✅ Connected to MongoDB');
-  createSuperAdmin();
-}
-
-// Connect immediately when module loads
-connectDB().catch(err => console.error('❌ Could not connect to MongoDB:', err));
+mongoose.connect(MONGO_URI)
+  .then(() => {
+    console.log('✅ Connected to MongoDB');
+    createSuperAdmin(); // Seed the initial admin user
+  })
+  .catch(err => console.error('❌ Could not connect to MongoDB:', err));
 
 // Route Imports
 const authRoutes = require('./routes/auth');
