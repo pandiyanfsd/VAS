@@ -94,9 +94,7 @@ app.get('/', (req, res) => {
 });
 
 const PORT = process.env.PORT || 5000;
-if (process.env.NODE_ENV !== 'production') {
-  require('./cron'); // Only run cron locally (not on Vercel serverless)
-  app.listen(PORT, () => console.log(`🚀 Server listening on port ${PORT}...`));
-}
+require('./cron');
+app.listen(PORT, () => console.log(`🚀 Server listening on port ${PORT}...`));
 
 module.exports = app;

@@ -1,1 +1,8 @@
-{}
+{
+  "rewrites": [
+    {
+      "source": "/api/:path*",
+      "destination": "https://vas-backend-ilyf.onrender.com/api/:path*"
+    }
+  ]
+}
