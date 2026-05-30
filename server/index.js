@@ -21,9 +21,8 @@ const { createSuperAdmin } = require('./services/superAdmin');
 const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/VAS_NEW';
 mongoose.connect(MONGO_URI)
   .then(() => {
-    console.log('✅ Connected to MongoDB (VAS_NEW)');
-    createSuperAdmin(); // Seed the initial admin user!
-    require('./cron'); // Initialize scheduled cron jobs
+    console.log('✅ Connected to MongoDB');
+    createSuperAdmin(); // Seed the initial admin user
   })
   .catch(err => console.error('❌ Could not connect to MongoDB:', err));
 
@@ -58,6 +57,7 @@ app.get('/', (req, res) => {
 
 const PORT = process.env.PORT || 5000;
 if (process.env.NODE_ENV !== 'production') {
+  require('./cron'); // Only run cron locally (not on Vercel serverless)
   app.listen(PORT, () => console.log(`🚀 Server listening on port ${PORT}...`));
 }
 
