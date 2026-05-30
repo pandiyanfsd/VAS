@@ -10,6 +10,7 @@ server/.env
 .env.*.local
 
 # Build output
+dist/
 client/dist/
 client/dist-ssr/
 

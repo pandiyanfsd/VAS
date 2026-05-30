@@ -17,14 +17,52 @@ app.use(cors({
 
 const { createSuperAdmin } = require('./services/superAdmin');
 
-// Database connection
+// Database connection with caching for Serverless environments (Vercel)
 const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/VAS_NEW';
-mongoose.connect(MONGO_URI)
-  .then(() => {
-    console.log('✅ Connected to MongoDB');
-    createSuperAdmin(); // Seed the initial admin user
-  })
-  .catch(err => console.error('❌ Could not connect to MongoDB:', err));
+
+let cachedMongoose = global.mongoose;
+if (!cachedMongoose) {
+  cachedMongoose = global.mongoose = { conn: null, promise: null };
+}
+
+async function connectDB() {
+  if (cachedMongoose.conn) {
+    return cachedMongoose.conn;
+  }
+  if (!cachedMongoose.promise) {
+    const opts = {
+      bufferCommands: false,
+    };
+    cachedMongoose.promise = mongoose.connect(MONGO_URI, opts).then((mongooseInstance) => {
+      console.log('✅ Connected to MongoDB');
+      createSuperAdmin(); // Seed the initial admin user
+      return mongooseInstance;
+    });
+  }
+  try {
+    cachedMongoose.conn = await cachedMongoose.promise;
+  } catch (err) {
+    cachedMongoose.promise = null;
+    throw err;
+  }
+  return cachedMongoose.conn;
+}
+
+// Connect immediately in non-production/local environments
+if (process.env.VERCEL !== '1') {
+  connectDB().catch(err => console.error('❌ Could not connect to MongoDB:', err));
+}
+
+// Database Connection Middleware for Vercel Serverless Function lifecycle
+app.use(async (req, res, next) => {
+  try {
+    await connectDB();
+    next();
+  } catch (err) {
+    console.error('❌ Database connection middleware error:', err);
+    res.status(500).json({ error: 'Database connection failed' });
+  }
+});
 
 // Route Imports
 const authRoutes = require('./routes/auth');
