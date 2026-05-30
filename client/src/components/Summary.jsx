@@ -38,10 +38,10 @@ const Summary = () => {
     setLoading(true);
     try {
       const [reportsRes, expensesRes, surrendersRes, membersRes] = await Promise.all([
-        axios.get(`/api/reports/summary`),
-        axios.get(`/api/expenses`),
-        axios.get(`/api/surrenders/summary`),
-        axios.get(`/api/members`)
+        axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/reports/summary`),
+        axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/expenses`),
+        axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/surrenders/summary`),
+        axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/members`)
       ]);
 
       setSummaryData({

@@ -20,8 +20,8 @@ const TreasuryHandover = () => {
   const fetchTreasuryData = async () => {
     setLoading(true);
     try {
-      const summaryRes = await axios.get(`/api/surrenders/summary`);
-      const historyRes = await axios.get(`/api/surrenders`);
+      const summaryRes = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/surrenders/summary`);
+      const historyRes = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/surrenders`);
       setSummary(summaryRes.data);
       setHistory(historyRes.data);
     } catch (error) {
@@ -58,7 +58,7 @@ const TreasuryHandover = () => {
     }
 
     try {
-      await axios.post(`/api/surrenders`, {
+      await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/surrenders`, {
         cashierId: selectedCashier._id,
         amount: Number(surrenderAmount),
         surrenderDate: surrenderDate ? new Date(surrenderDate) : new Date(),

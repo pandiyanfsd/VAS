@@ -78,7 +78,7 @@ const DetailedReports = () => {
   useEffect(() => {
     const fetchFunds = async () => {
       try {
-        const res = await axios.get(`/api/funds`);
+        const res = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/funds`);
         setFunds(res.data);
       } catch (err) {
         console.error("Error fetching funds", err);
@@ -98,11 +98,11 @@ const DetailedReports = () => {
     setLoading(true);
     try {
       // 1. Fetch Summary
-      const summaryRes = await axios.get(`/api/reports/summary`);
+      const summaryRes = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/reports/summary`);
       setSummary(summaryRes.data);
 
       // 2. Fetch Payments (Income)
-      let paymentsUrl = `/api/payments?`;
+      let paymentsUrl = `${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/payments?`;
       if (startDate) paymentsUrl += `startDate=${startDate}&`;
       if (endDate) paymentsUrl += `endDate=${endDate}&`;
       if (selectedFundId) paymentsUrl += `fundId=${selectedFundId}&`;
@@ -116,14 +116,14 @@ const DetailedReports = () => {
       setPayments(filteredPayments);
 
       // 3. Fetch Expenses
-      let expensesUrl = `/api/expenses?`;
+      let expensesUrl = `${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/expenses?`;
       if (startDate) expensesUrl += `startDate=${startDate}&`;
       if (endDate) expensesUrl += `endDate=${endDate}&`;
       const expensesRes = await axios.get(expensesUrl);
       setExpenses(expensesRes.data);
 
       // 4. Fetch all Member Dues for the detailed Audit Sheet
-      const duesRes = await axios.get(`/api/dues`);
+      const duesRes = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/dues`);
       setDues(duesRes.data);
 
     } catch (err) {

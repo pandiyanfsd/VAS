@@ -39,7 +39,7 @@ const ManageMembers = () => {
     }
     setLoading(true);
     try {
-      await axios.post(`/api/auth/admin/resetPassword/member/${resetMember._id}`,
+      await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/auth/admin/resetPassword/member/${resetMember._id}`,
         { newPassword: resetPassword },
         { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }
       );
@@ -148,9 +148,9 @@ const [loading, setLoading] = useState(false);
     setLoading(true);
     try {
       const [memRes, duesRes, fundsRes] = await Promise.all([
-        axios.get(`/api/members`),
-        axios.get(`/api/dues`),
-        axios.get(`/api/funds`)
+        axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/members`),
+        axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/dues`),
+        axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/funds`)
       ]);
       setMembers(memRes.data);
       setDues(duesRes.data);
@@ -219,9 +219,9 @@ const [loading, setLoading] = useState(false);
       }
 
       if (isEditMode) {
-        await axios.put(`/api/members/${editId}`, payload);
+        await axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/members/${editId}`, payload);
       } else {
-        await axios.post(`/api/members`, payload);
+        await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/members`, payload);
       }
       setIsModalOpen(false);
       fetchMembers();
@@ -238,7 +238,7 @@ const [loading, setLoading] = useState(false);
     if (!memberToDelete) return;
     setLoading(true);
     try {
-      await axios.delete(`/api/members/${memberToDelete._id}`);
+      await axios.delete(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/members/${memberToDelete._id}`);
       fetchMembers();
       setMemberToDelete(null);
     } catch (error) {
@@ -255,7 +255,7 @@ const [loading, setLoading] = useState(false);
       const { familyRecord, subMember } = subMemberToDelete;
       const updatedSubMembers = familyRecord.subFamilyMembers.filter(s => s.memberId !== subMember.memberId);
       
-      const res = await axios.put(`/api/members/${familyRecord._id}`, {
+      const res = await axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/members/${familyRecord._id}`, {
         ...familyRecord,
         subFamilyMembers: updatedSubMembers
       });

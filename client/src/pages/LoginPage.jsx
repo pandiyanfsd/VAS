@@ -24,7 +24,7 @@ const LoginPage = () => {
       else if (role === 'cashier') payload.phone = identifier;
       else payload.identifier = identifier;
 
-      const res = await axios.post(`/api/auth/${role}/login`, payload);
+      const res = await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/auth/${role}/login`, payload);
       
       // Store token
       localStorage.setItem('token', res.data.token);

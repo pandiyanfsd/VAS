@@ -48,12 +48,12 @@ const ManageExpenses = ({ isCashier = false, currentCashier = null }) => {
     setLoading(true);
     try {
       const expensesUrl = isCashier
-        ? `/api/expenses?cashierId=${currentCashier?._id}`
-        : `/api/expenses`;
+        ? `${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/expenses?cashierId=${currentCashier?._id}`
+        : `${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/expenses`;
       
       const promises = [axios.get(expensesUrl)];
       if (!isCashier) {
-        promises.push(axios.get(`/api/cashiers`));
+        promises.push(axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/cashiers`));
       }
       
       const results = await Promise.all(promises);
@@ -133,10 +133,10 @@ const ManageExpenses = ({ isCashier = false, currentCashier = null }) => {
       };
 
       if (modalMode === 'create') {
-        await axios.post(`/api/expenses`, payload);
+        await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/expenses`, payload);
         setSuccessMsg(`Successfully logged expense: "${formData.title}" (₹${Number(formData.amount).toLocaleString()})`);
       } else {
-        await axios.put(`/api/expenses/${selectedExpense._id}`, payload);
+        await axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/expenses/${selectedExpense._id}`, payload);
         setSuccessMsg(`Successfully updated expense: "${formData.title}"`);
       }
 
@@ -150,7 +150,7 @@ const ManageExpenses = ({ isCashier = false, currentCashier = null }) => {
   const confirmDeleteExpense = async () => {
     if (!expenseToDelete) return;
     try {
-      await axios.delete(`/api/expenses/${expenseToDelete._id}`);
+      await axios.delete(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/expenses/${expenseToDelete._id}`);
       setSuccessMsg(`Successfully deleted expense: "${expenseToDelete.title}"`);
       setExpenseToDelete(null);
       fetchExpensesAndCashiers();
