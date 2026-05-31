@@ -198,9 +198,9 @@ const DetailedReports = () => {
 
   // Filter dues dynamically based on selected date range, selected specific fund, selected fund type, and search query (Family ID / Name)
   const filteredDuesForExplorer = dues.filter(d => {
-    // 1. Date Range Filter (based on Fund's dueDate, fund's createdAt, due's dueDate, or due's createdAt)
+    // 1. Date Range Filter (based on allocation creation date first, then dueDates as fallbacks)
     if (startDate && endDate) {
-      const fundDateRaw = d.fundId?.dueDate || d.fundId?.createdAt || d.dueDate || d.createdAt;
+      const fundDateRaw = d.createdAt || d.fundId?.createdAt || d.dueDate || d.fundId?.dueDate;
       if (fundDateRaw) {
         const fundDate = new Date(fundDateRaw);
         const start = new Date(startDate);
