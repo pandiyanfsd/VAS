@@ -22,12 +22,18 @@ const healDues = async () => {
       ]
     });
 
+    // 1. Fetch all existing dues in ONE query to avoid N * M calls
+    const existingDues = await MemberFundDue.find({}, 'memberId fundId');
+    const existingSet = new Set(existingDues.map(d => `${d.memberId.toString()}_${d.fundId.toString()}`));
+
     const bulkOps = [];
 
+    // 2. Compare in-memory (extremely fast!)
     for (const member of members) {
+      const mIdStr = member._id.toString();
       for (const fund of funds) {
-        const exists = await MemberFundDue.findOne({ memberId: member._id, fundId: fund._id });
-        if (!exists) {
+        const fIdStr = fund._id.toString();
+        if (!existingSet.has(`${mIdStr}_${fIdStr}`)) {
           bulkOps.push({
             memberId: member._id,
             fundId: fund._id,
