@@ -6,59 +6,13 @@ const { MemberFundDue } = require('../models/memberFundDue');
 const { Member } = require('../models/member');
 const { Fund } = require('../models/fund');
 
-// Database self-healing for missing dues invoices
-const healDues = async () => {
-  try {
-    const members = await Member.find({ role: 'member' });
-    const funds = await Fund.find({});
-    
-    // Clean up orphaned dues where the member or fund no longer exists
-    const validMemberIds = members.map(m => m._id);
-    const validFundIds = funds.map(f => f._id);
-    await MemberFundDue.deleteMany({
-      $or: [
-        { memberId: { $nin: validMemberIds } },
-        { fundId: { $nin: validFundIds } }
-      ]
-    });
-
-    // 1. Fetch all existing dues in ONE query to avoid N * M calls
-    const existingDues = await MemberFundDue.find({}, 'memberId fundId');
-    const existingSet = new Set(existingDues.map(d => `${d.memberId.toString()}_${d.fundId.toString()}`));
-
-    const bulkOps = [];
-
-    // 2. Compare in-memory (extremely fast!)
-    for (const member of members) {
-      const mIdStr = member._id.toString();
-      for (const fund of funds) {
-        const fIdStr = fund._id.toString();
-        if (!existingSet.has(`${mIdStr}_${fIdStr}`)) {
-          bulkOps.push({
-            memberId: member._id,
-            fundId: fund._id,
-            totalDueAmount: fund.targetAmount,
-            status: 'unpaid',
-            amountPaid: 0
-          });
-        }
-      }
-    }
-
-    if (bulkOps.length > 0) {
-      await MemberFundDue.insertMany(bulkOps);
-      console.log(`[Self-Healing] Generated ${bulkOps.length} missing due invoices.`);
-    }
-  } catch (err) {
-    console.error("[Self-Healing] Error auto-generating missing dues:", err);
-  }
-};
+const { healDues } = require('../services/duesService');
 
 // Get overall Financial summary (Overall funds and expense details)
 router.get('/summary', async (req, res) => {
   try {
-    // Run self-healing to verify database sync
-    await healDues();
+    // Run self-healing to verify database sync (throttled)
+    await healDues(false);
 
     // 1. Total Collections (Payments)
     // Apply optional filters from query params

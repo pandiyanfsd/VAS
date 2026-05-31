@@ -2,56 +2,13 @@ const express = require('express');
 const router = express.Router();
 const { MemberFundDue } = require('../models/memberFundDue');
 
+const { healDues } = require('../services/duesService');
+
 // Get all due records with populated members and funds (for global dashboard & financial explorer audit)
 router.get('/', async (req, res) => {
   try {
-    // 1. Run dynamic database self-healing to verify no newly created members are missing due invoices
-    const { Member } = require('../models/member');
-    const { Fund } = require('../models/fund');
-
-    const members = await Member.find({ role: 'member' });
-    const funds = await Fund.find({});
-
-    // Clean up orphaned dues where the member or fund no longer exists
-    const validMemberIds = members.map(m => m._id);
-    const validFundIds = funds.map(f => f._id);
-    await MemberFundDue.deleteMany({
-      $or: [
-        { memberId: { $nin: validMemberIds } },
-        { fundId: { $nin: validFundIds } }
-      ]
-    });
-
-    // 1. Fetch all existing dues in ONE query to avoid N * M calls
-    const existingDues = await MemberFundDue.find({}, 'memberId fundId');
-    const existingSet = new Set(existingDues.map(d => `${d.memberId.toString()}_${d.fundId.toString()}`));
-
-    const bulkOps = [];
-
-    // 2. Compare in-memory (extremely fast!)
-    for (const member of members) {
-      const exemptedSet = new Set((member.exemptedFunds || []).map(id => id.toString()));
-      const mIdStr = member._id.toString();
-      for (const fund of funds) {
-        if (exemptedSet.has(fund._id.toString())) continue;
-        
-        const fIdStr = fund._id.toString();
-        if (!existingSet.has(`${mIdStr}_${fIdStr}`)) {
-          bulkOps.push({
-            memberId: member._id,
-            fundId: fund._id,
-            totalDueAmount: fund.targetAmount,
-            status: 'unpaid',
-            amountPaid: 0
-          });
-        }
-      }
-    }
-
-    if (bulkOps.length > 0) {
-      await MemberFundDue.insertMany(bulkOps);
-      console.log(`[Self-Healing Dues] Auto-generated ${bulkOps.length} missing due invoices.`);
-    }
+    // 1. Run dynamic database self-healing (throttled)
+    await healDues(false);
 
     // 2. Fetch all dues with populated records
     const dues = await MemberFundDue.find({})

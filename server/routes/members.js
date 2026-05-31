@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { Member } = require('../models/member');
 const { Fund } = require('../models/fund');
+const { healDues } = require('../services/duesService');
 
 // Create new member (Admin only usually)
 router.post('/', async (req, res) => {
@@ -40,6 +41,7 @@ router.post('/', async (req, res) => {
     });
 
     await member.save();
+    await healDues(true); // Force run self-healing immediately for the new member
     res.status(201).send({ message: 'Member created successfully', member });
   } catch (error) {
     console.error('[POST /api/members] Error:', error.message);
@@ -99,6 +101,7 @@ router.put('/:id', async (req, res) => {
     }
 
     await member.save();
+    await healDues(true); // Force run self-healing immediately for member updates
     
     if (!member) return res.status(404).send({ error: 'Member not found' });
     res.send(member);

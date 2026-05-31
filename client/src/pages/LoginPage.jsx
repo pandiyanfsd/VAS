@@ -12,6 +12,12 @@ const LoginPage = () => {
 
   const [showPassword, setShowPassword] = useState(false);
 
+  React.useEffect(() => {
+    // Warm up the backend server on login page load (mitigates Render free-tier cold-start delays)
+    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+    axios.get(apiUrl).catch(() => {});
+  }, []);
+
 
   const handleLogin = async (e) => {
     e.preventDefault();

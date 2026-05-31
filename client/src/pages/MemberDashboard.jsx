@@ -58,6 +58,12 @@ const MemberDashboard = () => {
   const [showSubModal, setShowSubModal] = useState(false);
   const [editingSubIndex, setEditingSubIndex] = useState(null); // null if adding, number if editing
   const [subForm, setSubForm] = useState({ name: '', relation: '', age: '', gender: 'male' });
+  const [subError, setSubError] = useState('');
+
+  // Edit Profile Modal State
+  const [showProfileModal, setShowProfileModal] = useState(false);
+  const [profileForm, setProfileForm] = useState({ name: '', phone: '', age: '', gender: 'male' });
+  const [profileError, setProfileError] = useState('');
 
   // Central Financials settings and data
   const [memberFinancialsVisible, setMemberFinancialsVisible] = useState(false);
@@ -128,21 +134,20 @@ const MemberDashboard = () => {
     }
   };
 
-  // 2. Fetch ONLY this family's own profile, dues, and payment history
+  // 2. Fetch ONLY this family's own profile, dues, and payment history (parallelized for maximum speed)
   const fetchMemberData = async (memberId) => {
     setLoading(true);
     setErrorMsg('');
     try {
-      // Fetch only this family's own profile — NOT all members
-      const memberRes = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/members/${memberId}`);
+      // Fetch only profile, dues, and payments in parallel (concurrency optimization)
+      const [memberRes, duesRes, paymentsRes] = await Promise.all([
+        axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/members/${memberId}`),
+        axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/dues/member/${memberId}`),
+        axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/payments?memberId=${memberId}`)
+      ]);
+
       setMember(memberRes.data);
-
-      // Fetch only this family's dues
-      const duesRes = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/dues/member/${memberId}`);
       setDues(duesRes.data || []);
-
-      // Fetch only this family's payment receipts
-      const paymentsRes = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/payments?memberId=${memberId}`);
       setPayments(paymentsRes.data || []);
 
       // Fetch Visibility Setting for Central Financials
@@ -152,8 +157,12 @@ const MemberDashboard = () => {
         setMemberFinancialsVisible(visible);
 
         if (visible) {
-          // Fetch central village financials
-          const summaryRes = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/reports/summary`);
+          // Parallelize central village summary and expense ledger fetching
+          const [summaryRes, expensesRes] = await Promise.all([
+            axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/reports/summary`),
+            axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/expenses`)
+          ]);
+
           const data = summaryRes.data;
           setCentralStats({
             totalAllotted: (data.totalCollected || 0) + (data.totalPendingDues || 0),
@@ -163,8 +172,6 @@ const MemberDashboard = () => {
             totalPendingDues: data.totalPendingDues || 0
           });
 
-          // Fetch all central expenses
-          const expensesRes = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/expenses`);
           // Filter to only approved expenses to display to the member
           const approved = (expensesRes.data || []).filter(e => e.status === 'approved');
           setCentralExpenses(approved);
@@ -186,10 +193,56 @@ const MemberDashboard = () => {
     navigate('/login');
   };
 
-  // 3. Sub Family Member CRUD Handlers
+  // 3. Edit Profile Handlers
+  const openEditProfileModal = () => {
+    setProfileForm({
+      name: member?.name || '',
+      phone: member?.phone || '',
+      age: member?.age || '',
+      gender: member?.gender || 'male'
+    });
+    setProfileError('');
+    setShowProfileModal(true);
+  };
+
+  const handleSaveProfile = async (e) => {
+    e.preventDefault();
+    if (!member) return;
+    setProfileError('');
+
+    // Client-side verification
+    if (profileForm.name.length < 5 || profileForm.name.length > 50) {
+      setProfileError("Full Name must be between 5 and 50 characters.");
+      return;
+    }
+    if (profileForm.phone.length !== 10 || !/^\d+$/.test(profileForm.phone)) {
+      setProfileError("Phone number must be exactly 10 digits.");
+      return;
+    }
+
+    try {
+      const res = await axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/members/${member._id}`, {
+        ...member,
+        name: profileForm.name,
+        phone: profileForm.phone,
+        age: profileForm.age ? Number(profileForm.age) : undefined,
+        gender: profileForm.gender
+      });
+
+      setMember(res.data);
+      localStorage.setItem('user', JSON.stringify(res.data));
+      setShowProfileModal(false);
+    } catch (err) {
+      console.error("Failed to save member profile", err);
+      setProfileError(err.response?.data?.error || "Failed to update profile. Please verify input values.");
+    }
+  };
+
+  // 4. Sub Family Member CRUD Handlers
   const openAddSubModal = () => {
     setEditingSubIndex(null);
     setSubForm({ name: '', relation: '', age: '', gender: 'male' });
+    setSubError('');
     setShowSubModal(true);
   };
 
@@ -201,6 +254,7 @@ const MemberDashboard = () => {
       age: sub.age || '',
       gender: sub.gender || 'male'
     });
+    setSubError('');
     setShowSubModal(true);
   };
 
@@ -209,6 +263,7 @@ const MemberDashboard = () => {
     if (!member) return;
 
     try {
+      setSubError('');
       const updatedSubMembers = [...(member.subFamilyMembers || [])];
       const newSub = {
         name: subForm.name,
@@ -229,10 +284,11 @@ const MemberDashboard = () => {
       });
 
       setMember(res.data);
+      localStorage.setItem('user', JSON.stringify(res.data));
       setShowSubModal(false);
     } catch (err) {
       console.error("Failed to save sub family member", err);
-      alert("Failed to save family member. Please check input.");
+      setSubError(err.response?.data?.error || "Failed to save family member. Please verify input values.");
     }
   };
 
@@ -248,9 +304,10 @@ const MemberDashboard = () => {
       });
 
       setMember(res.data);
+      localStorage.setItem('user', JSON.stringify(res.data));
     } catch (err) {
       console.error("Failed to delete sub family member", err);
-      alert("Failed to delete family member.");
+      alert("Failed to delete family member. " + (err.response?.data?.error || ""));
     }
   };
 
@@ -472,18 +529,46 @@ const MemberDashboard = () => {
                 <div className="profile-grid">
                   {/* Family Head Card */}
                   <div className="profile-card glass-panel p-8">
-                    <div className="profile-header">
-                      <div className="profile-avatar">🏡</div>
-                      <div className="profile-title">
-                        <h3>{member?.name}</h3>
-                        <span>Household Head Profile</span>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '20px' }}>
+                      <div className="profile-header" style={{ marginBottom: 0 }}>
+                        <div className="profile-avatar">🏡</div>
+                        <div className="profile-title">
+                          <h3>{member?.name}</h3>
+                          <span>Household Head Profile</span>
+                        </div>
                       </div>
+                      <button 
+                        onClick={openEditProfileModal}
+                        style={{
+                          background: 'rgba(79, 70, 229, 0.1)',
+                          color: 'var(--primary-color)',
+                          border: 'none',
+                          padding: '6px 12px',
+                          borderRadius: '8px',
+                          fontWeight: '800',
+                          fontSize: '0.8rem',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '4px'
+                        }}
+                      >
+                        <Edit size={14} /> Edit Profile
+                      </button>
                     </div>
 
                     <div className="info-list">
                       <div className="info-item">
                         <span className="info-label">Household Head Name</span>
                         <span className="info-value">{member?.name || 'N/A'}</span>
+                      </div>
+                      <div className="info-item">
+                        <span className="info-label">Age</span>
+                        <span className="info-value">{member?.age || 'N/A'}</span>
+                      </div>
+                      <div className="info-item">
+                        <span className="info-label">Gender</span>
+                        <span className="info-value" style={{ textTransform: 'capitalize' }}>{member?.gender || 'N/A'}</span>
                       </div>
                       <div className="info-item">
                         <span className="info-label">Unique Member ID</span>
@@ -1155,6 +1240,25 @@ const MemberDashboard = () => {
               </button>
             </div>
 
+            {subError && (
+              <div style={{
+                padding: '10px 14px',
+                borderRadius: '8px',
+                fontSize: '0.82rem',
+                fontWeight: '700',
+                marginBottom: '16px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                border: '1px solid rgba(239, 68, 68, 0.2)',
+                background: '#fef2f2',
+                color: '#ef4444'
+              }}>
+                <AlertCircle size={15} />
+                <span>{subError}</span>
+              </div>
+            )}
+
             <form onSubmit={handleSaveSub} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                 <label style={{ fontSize: '0.82rem', fontWeight: '700', color: '#475569' }}>Full Name</label>
@@ -1170,14 +1274,20 @@ const MemberDashboard = () => {
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                 <label style={{ fontSize: '0.82rem', fontWeight: '700', color: '#475569' }}>Relationship</label>
-                <input 
-                  type="text"
+                <select 
                   required
-                  placeholder="e.g. Spouse, Son, Daughter..."
                   value={subForm.relation}
                   onChange={(e) => setSubForm({ ...subForm, relation: e.target.value })}
-                  style={{ padding: '10px 12px', borderRadius: '10px', border: '1px solid #cbd5e1', outline: 'none', fontSize: '0.9rem' }}
-                />
+                  style={{ padding: '10px 12px', borderRadius: '10px', border: '1px solid #cbd5e1', outline: 'none', fontSize: '0.9rem', color: '#475569' }}
+                >
+                  <option value="" disabled>Select relationship...</option>
+                  {["Husband", "Wife", "Son", "Daughter", "Father", "Mother", "Brother", "Sister", "Grandson", "Granddaughter", "Other"].map(opt => (
+                    <option key={opt} value={opt}>{opt}</option>
+                  ))}
+                  {subForm.relation && !["Husband", "Wife", "Son", "Daughter", "Father", "Mother", "Brother", "Sister", "Grandson", "Granddaughter", "Other"].includes(subForm.relation) && (
+                    <option value={subForm.relation}>{subForm.relation}</option>
+                  )}
+                </select>
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
@@ -1219,6 +1329,133 @@ const MemberDashboard = () => {
                   style={{ background: 'var(--primary-color)', color: 'white', border: 'none', padding: '10px 18px', borderRadius: '10px', fontWeight: '800', cursor: 'pointer', fontSize: '0.85rem' }}
                 >
                   Save Member
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+      {/* RENDER MODAL: Edit Profile */}
+      {showProfileModal && (
+        <div className="modal-backdrop animate-fade-in" style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: '20px' }}>
+          <div className="modal-content animate-scale-up" style={{ width: '100%', maxWidth: '460px', background: 'white', border: '1px solid #cbd5e1', borderRadius: '24px', padding: '30px', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #e2e8f0', paddingBottom: '12px', marginBottom: '20px' }}>
+              <h3 style={{ margin: 0, fontSize: '1.15rem', color: '#0f172a', fontWeight: '800' }}>
+                ✏️ Edit Household Head Profile
+              </h3>
+              <button 
+                onClick={() => setShowProfileModal(false)}
+                style={{ background: '#f1f5f9', border: 'none', color: '#64748b', width: '32px', height: '32px', borderRadius: '50%', cursor: 'pointer', fontSize: '0.9rem', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '800' }}
+              >
+                ✕
+              </button>
+            </div>
+
+            {profileError && (
+              <div style={{
+                padding: '10px 14px',
+                borderRadius: '8px',
+                fontSize: '0.82rem',
+                fontWeight: '700',
+                marginBottom: '16px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                border: '1px solid rgba(239, 68, 68, 0.2)',
+                background: '#fef2f2',
+                color: '#ef4444'
+              }}>
+                <AlertCircle size={15} />
+                <span>{profileError}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleSaveProfile} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  <label style={{ fontSize: '0.82rem', fontWeight: '700', color: '#64748b' }}>Unique Member ID</label>
+                  <input 
+                    type="text"
+                    disabled
+                    value={member?.memberId || ''}
+                    style={{ padding: '10px 12px', borderRadius: '10px', border: '1px solid #cbd5e1', outline: 'none', fontSize: '0.9rem', background: '#f1f5f9', cursor: 'not-allowed', color: '#64748b' }}
+                  />
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  <label style={{ fontSize: '0.82rem', fontWeight: '700', color: '#64748b' }}>Family ID / Code</label>
+                  <input 
+                    type="text"
+                    disabled
+                    value={member?.familyId || ''}
+                    style={{ padding: '10px 12px', borderRadius: '10px', border: '1px solid #cbd5e1', outline: 'none', fontSize: '0.9rem', background: '#f1f5f9', cursor: 'not-allowed', color: '#64748b' }}
+                  />
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <label style={{ fontSize: '0.82rem', fontWeight: '700', color: '#475569' }}>Full Name</label>
+                <input 
+                  type="text"
+                  required
+                  placeholder="Enter full name..."
+                  value={profileForm.name}
+                  onChange={(e) => setProfileForm({ ...profileForm, name: e.target.value })}
+                  style={{ padding: '10px 12px', borderRadius: '10px', border: '1px solid #cbd5e1', outline: 'none', fontSize: '0.9rem' }}
+                />
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <label style={{ fontSize: '0.82rem', fontWeight: '700', color: '#475569' }}>Mobile Contact</label>
+                <input 
+                  type="text"
+                  required
+                  placeholder="10-digit phone number..."
+                  value={profileForm.phone}
+                  onChange={(e) => setProfileForm({ ...profileForm, phone: e.target.value })}
+                  style={{ padding: '10px 12px', borderRadius: '10px', border: '1px solid #cbd5e1', outline: 'none', fontSize: '0.9rem' }}
+                />
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  <label style={{ fontSize: '0.82rem', fontWeight: '700', color: '#475569' }}>Age</label>
+                  <input 
+                    type="number"
+                    placeholder="e.g. 45"
+                    value={profileForm.age}
+                    onChange={(e) => setProfileForm({ ...profileForm, age: e.target.value })}
+                    style={{ padding: '10px 12px', borderRadius: '10px', border: '1px solid #cbd5e1', outline: 'none', fontSize: '0.9rem' }}
+                  />
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  <label style={{ fontSize: '0.82rem', fontWeight: '700', color: '#475569' }}>Gender</label>
+                  <select 
+                    value={profileForm.gender}
+                    onChange={(e) => setProfileForm({ ...profileForm, gender: e.target.value })}
+                    style={{ padding: '10px 12px', borderRadius: '10px', border: '1px solid #cbd5e1', outline: 'none', fontSize: '0.9rem', color: '#475569' }}
+                  >
+                    <option value="male">Male</option>
+                    <option value="female">Female</option>
+                    <option value="other">Other</option>
+                  </select>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '10px' }}>
+                <button 
+                  type="button"
+                  onClick={() => setShowProfileModal(false)}
+                  style={{ background: '#f1f5f9', color: '#475569', border: 'none', padding: '10px 18px', borderRadius: '10px', fontWeight: '700', cursor: 'pointer', fontSize: '0.85rem' }}
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="submit"
+                  style={{ background: 'var(--primary-color)', color: 'white', border: 'none', padding: '10px 18px', borderRadius: '10px', fontWeight: '800', cursor: 'pointer', fontSize: '0.85rem' }}
+                >
+                  Save Profile
                 </button>
               </div>
             </form>

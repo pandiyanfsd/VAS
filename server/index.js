@@ -33,9 +33,11 @@ async function connectDB() {
     const opts = {
       bufferCommands: false,
     };
+    const { healDues } = require('./services/duesService');
     cachedMongoose.promise = mongoose.connect(MONGO_URI, opts).then((mongooseInstance) => {
       console.log('✅ Connected to MongoDB');
       createSuperAdmin(); // Seed the initial admin user
+      healDues(true).catch(err => console.error('Failed to run initial dues healing:', err));
       return mongooseInstance;
     });
   }

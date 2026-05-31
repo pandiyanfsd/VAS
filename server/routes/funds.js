@@ -3,6 +3,7 @@ const router = express.Router();
 const { Fund } = require('../models/fund');
 const { Member } = require('../models/member');
 const { MemberFundDue } = require('../models/memberFundDue');
+const { healDues } = require('../services/duesService');
 
 // Create a new fund and auto-generate dues for all members
 router.post('/', async (req, res) => {
@@ -14,20 +15,8 @@ router.post('/', async (req, res) => {
     });
     await fund.save();
 
-    // Fetch all active members
-    const members = await Member.find({ role: 'member' });
-    
-    // Generate an unpaid invoice (due) for each member
-    const dues = members.map(member => ({
-      memberId: member._id,
-      fundId: fund._id,
-      totalDueAmount: targetAmount,
-      status: 'unpaid'
-    }));
-    
-    if (dues.length > 0) {
-      await MemberFundDue.insertMany(dues);
-    }
+    // Generate dues for members (respecting exemptions)
+    await healDues(true);
     
     res.status(201).send({ message: 'Fund created successfully and dues assigned.', fund });
   } catch (error) {
@@ -80,6 +69,7 @@ router.delete('/:id', async (req, res) => {
     
     // Also remove all associated Dues so the ledger is clean
     await MemberFundDue.deleteMany({ fundId: req.params.id });
+    await healDues(true);
     
     res.send({ message: 'Fund and all its associated dues deleted successfully' });
   } catch (error) {
