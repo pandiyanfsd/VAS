@@ -77,6 +77,7 @@ const cashierRoutes = require('./routes/cashiers');
 const reportRoutes = require('./routes/reports');
 const surrenderRoutes = require('./routes/surrenders');
 const settingRoutes = require('./routes/settings');
+const donationRoutes = require('./routes/donations');
 
 // Register Routes
 app.use('/api/auth', authRoutes);
@@ -89,6 +90,7 @@ app.use('/api/cashiers', cashierRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/surrenders', surrenderRoutes);
 app.use('/api/settings', settingRoutes);
+app.use('/api/donations', donationRoutes);
 
 // Simple health check
 app.get('/', (req, res) => {

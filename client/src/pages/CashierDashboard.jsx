@@ -94,6 +94,21 @@ const CashierDashboard = () => {
   const [detailsModalType, setDetailsModalType] = useState('allotted'); // 'allotted' | 'paid' | 'outstanding'
   const [modalSearchTerm, setModalSearchTerm] = useState('');
 
+  // Donations State
+  const [donations, setDonations] = useState([]);
+  const [showDonationModal, setShowDonationModal] = useState(false);
+  const [donationForm, setDonationForm] = useState({
+    name: '',
+    date: getTodayDateString(),
+    amount: '',
+    address: '',
+    purpose: localStorage.getItem('last_donation_purpose') || ''
+  });
+  const [donationError, setDonationError] = useState('');
+  const [donationSuccess, setDonationSuccess] = useState('');
+  const [filterDonationPurpose, setFilterDonationPurpose] = useState('all');
+  const [submittingDonation, setSubmittingDonation] = useState(false);
+
   const handleOpenDetailsModal = (type) => {
     setDetailsModalType(type);
     setModalSearchTerm('');
@@ -188,6 +203,8 @@ const CashierDashboard = () => {
       fetchReceipts();
     } else if (activeTab === 'handovers') {
       fetchHandovers();
+    } else if (activeTab === 'donations') {
+      fetchDonations();
     }
   }, [activeTab, cashier]);
 
@@ -214,6 +231,84 @@ const CashierDashboard = () => {
       console.error("Error loading handover history", error);
     } finally {
       setLoadingHistory(false);
+    }
+  };
+
+  const fetchDonations = async () => {
+    setLoadingHistory(true);
+    try {
+      const res = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/donations?cashierId=${cashier._id}`);
+      setDonations(res.data || []);
+    } catch (error) {
+      console.error("Error loading donations", error);
+    } finally {
+      setLoadingHistory(false);
+    }
+  };
+
+  const handleRecordDonation = async (e) => {
+    e.preventDefault();
+    if (!cashier) return;
+    setDonationError('');
+    setDonationSuccess('');
+
+    if (!donationForm.name.trim()) {
+      setDonationError('Donor Name is required.');
+      return;
+    }
+    if (!donationForm.amount || parseFloat(donationForm.amount) <= 0) {
+      setDonationError('Enter a valid amount greater than ₹0.');
+      return;
+    }
+    if (!donationForm.address.trim()) {
+      setDonationError('Address is required.');
+      return;
+    }
+    if (!donationForm.purpose.trim()) {
+      setDonationError('Purpose is required.');
+      return;
+    }
+
+    setSubmittingDonation(true);
+    try {
+      const payload = {
+        name: donationForm.name,
+        date: donationForm.date,
+        amount: Number(donationForm.amount),
+        address: donationForm.address,
+        purpose: donationForm.purpose,
+        cashierId: cashier._id
+      };
+
+      await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/donations`, payload);
+      
+      // Save last used purpose for reuse
+      localStorage.setItem('last_donation_purpose', donationForm.purpose);
+      
+      setDonationSuccess('Donation recorded successfully!');
+      
+      // Reset form, reusing purpose
+      setDonationForm({
+        name: '',
+        date: getTodayDateString(),
+        amount: '',
+        address: '',
+        purpose: donationForm.purpose
+      });
+
+      // Close modal after brief timeout
+      setTimeout(() => {
+        setShowDonationModal(false);
+        setDonationSuccess('');
+      }, 1500);
+
+      // Refresh list
+      fetchDonations();
+    } catch (err) {
+      console.error("Error recording donation", err);
+      setDonationError(err.response?.data?.error || 'Failed to record donation. Please try again.');
+    } finally {
+      setSubmittingDonation(false);
     }
   };
 
@@ -456,6 +551,15 @@ const CashierDashboard = () => {
           </button>
 
           <button 
+            onClick={() => { setActiveTab('donations'); setIsMobileMenuOpen(false); }}
+            className={`nav-item ${activeTab === 'donations' ? 'active' : ''}`}
+            style={{ width: '100%', border: 'none', background: 'transparent', cursor: 'pointer', textAlign: 'left' }}
+          >
+            <Coins size={20} />
+            <span>Collect Donations</span>
+          </button>
+
+          <button 
             onClick={() => { setActiveTab('password'); setIsMobileMenuOpen(false); }}
             className={`nav-item ${activeTab === 'password' ? 'active' : ''}`}
             style={{ width: '100%', border: 'none', background: 'transparent', cursor: 'pointer', textAlign: 'left' }}
@@ -481,6 +585,7 @@ const CashierDashboard = () => {
             {activeTab === 'receipts' && 'My Receipt Logs'}
             {activeTab === 'handovers' && 'My Treasury Handovers'}
             {activeTab === 'expenses' && 'Manage Expenses'}
+            {activeTab === 'donations' && 'Collect General Donations'}
             {activeTab === 'password' && 'Account Security & Password'}
           </h1>
           <div className="user-profile">
@@ -492,7 +597,7 @@ const CashierDashboard = () => {
         <div className="content-body animate-fade-in">
           
           {/* 1. Real-time Cashier Treasury Stats Banner */}
-          {activeTab !== 'collect' && activeTab !== 'expenses' && activeTab !== 'password' && (
+          {activeTab !== 'collect' && activeTab !== 'expenses' && activeTab !== 'password' && activeTab !== 'donations' && (
             <div className="demographic-banner glass-panel mb-6 treasury-banner" style={{ 
               background: activeTab === 'receipts' 
                 ? 'linear-gradient(135deg, #1e1b4b 0%, #31115a 100%)' // Premium Dark Purple/Plum theme
@@ -1004,6 +1109,228 @@ const CashierDashboard = () => {
           {/* TAB 4: Manage Expenses */}
           {activeTab === 'expenses' && (
             <ManageExpenses isCashier={true} currentCashier={cashier} />
+          )}
+
+          {/* TAB 4.5: Collect Donations */}
+          {activeTab === 'donations' && (
+            <div className="glass-panel p-6 animate-fade-in" style={{ background: 'white', borderRadius: '24px', border: '1px solid #cbd5e1' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px', marginBottom: '24px' }}>
+                <div>
+                  <h3 style={{ fontSize: '1.25rem', fontWeight: '900', color: '#0f172a', margin: 0 }}>
+                    Recorded General Donations
+                  </h3>
+                  <p style={{ color: '#64748b', fontSize: '0.85rem', margin: '4px 0 0 0', fontWeight: '600' }}>
+                    Record and filter donations collected from the public.
+                  </p>
+                </div>
+                <button
+                  onClick={() => {
+                    setDonationError('');
+                    setDonationSuccess('');
+                    setShowDonationModal(true);
+                  }}
+                  style={{
+                    background: '#4f46e5',
+                    color: 'white',
+                    border: 'none',
+                    padding: '10px 18px',
+                    borderRadius: '10px',
+                    fontWeight: '800',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px'
+                  }}
+                >
+                  <Coins size={16} /> Record Donation
+                </button>
+              </div>
+
+              {/* Filters for Donations */}
+              <div style={{ display: 'flex', gap: '12px', marginBottom: '20px', flexWrap: 'wrap', alignItems: 'center' }}>
+                <div style={{ minWidth: '200px' }}>
+                  <label style={{ fontSize: '0.78rem', fontWeight: '800', color: '#64748b', textTransform: 'uppercase', display: 'block', marginBottom: '6px' }}>
+                    Filter by Purpose
+                  </label>
+                  <select
+                    value={filterDonationPurpose}
+                    onChange={(e) => setFilterDonationPurpose(e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '10px 14px',
+                      borderRadius: '10px',
+                      border: '1px solid #cbd5e1',
+                      fontWeight: '700',
+                      color: '#0f172a',
+                      background: 'white',
+                      outline: 'none'
+                    }}
+                  >
+                    <option value="all">All Purposes</option>
+                    {[...new Set(donations.map(d => d.purpose).filter(Boolean))].map(purpose => (
+                      <option key={purpose} value={purpose}>{purpose}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Donations Table */}
+              {loadingHistory ? (
+                <div style={{ textAlign: 'center', padding: '40px 0', color: '#64748b' }}>
+                  <RefreshCw className="animate-spin" size={32} style={{ margin: '0 auto 10px auto' }} />
+                  Loading donations ledger...
+                </div>
+              ) : donations.length === 0 ? (
+                <p style={{ textAlign: 'center', color: '#64748b', padding: '40px 0', fontWeight: '600' }}>
+                  No donations recorded yet by you. Click "Record Donation" to add one.
+                </p>
+              ) : (
+                <div style={{ overflowX: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+                    <thead>
+                      <tr style={{ borderBottom: '2px solid #cbd5e1', color: '#475569', fontSize: '0.8rem', fontWeight: '800', textTransform: 'uppercase' }}>
+                        <th style={{ padding: '12px 10px' }}>Donor Name</th>
+                        <th style={{ padding: '12px 10px' }}>Purpose</th>
+                        <th style={{ padding: '12px 10px' }}>Amount</th>
+                        <th style={{ padding: '12px 10px' }}>Address</th>
+                        <th style={{ padding: '12px 10px' }}>Date</th>
+                      </tr>
+                    </thead>
+                    <tbody style={{ fontSize: '0.9rem', fontWeight: '600', color: '#0f172a' }}>
+                      {donations
+                        .filter(d => filterDonationPurpose === 'all' || d.purpose === filterDonationPurpose)
+                        .map((d, index) => (
+                          <tr key={d._id || index} style={{ borderBottom: '1px solid #e2e8f0', background: index % 2 === 0 ? '#f8fafc' : 'white' }}>
+                            <td style={{ padding: '14px 10px', fontWeight: '700' }}>{d.name}</td>
+                            <td style={{ padding: '14px 10px' }}>
+                              <span style={{ background: 'rgba(79, 70, 229, 0.08)', color: '#4f46e5', padding: '4px 10px', borderRadius: '6px', fontSize: '0.78rem', fontWeight: '800', textTransform: 'uppercase' }}>
+                                {d.purpose}
+                              </span>
+                            </td>
+                            <td style={{ padding: '14px 10px', color: '#10b981', fontWeight: '800' }}>₹{d.amount.toLocaleString()}</td>
+                            <td style={{ padding: '14px 10px', color: '#475569', maxWidth: '200px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={d.address}>
+                              {d.address}
+                            </td>
+                            <td style={{ padding: '14px 10px', color: '#64748b' }}>{new Date(d.date).toLocaleDateString('en-IN')}</td>
+                          </tr>
+                        ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
+              {/* Record Donation Modal */}
+              {showDonationModal && (
+                <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10000, padding: '20px' }}>
+                  <div className="glass-panel p-8 animate-scale-up" style={{ background: 'white', borderRadius: '24px', width: '100%', maxWidth: '480px', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                      <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: '950', color: '#0f172a' }}>Record General Donation</h3>
+                      <button onClick={() => setShowDonationModal(false)} style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: '#64748b' }}>
+                        <X size={20} />
+                      </button>
+                    </div>
+
+                    {donationError && (
+                      <div style={{ padding: '12px 16px', borderRadius: '10px', fontSize: '0.85rem', fontWeight: '700', marginBottom: '20px', background: '#fef2f2', border: '1px solid rgba(239,68,68,0.2)', color: '#ef4444' }}>
+                        <AlertCircle size={16} style={{ display: 'inline', marginRight: '6px', verticalAlign: 'text-bottom' }} /> {donationError}
+                      </div>
+                    )}
+                    {donationSuccess && (
+                      <div style={{ padding: '12px 16px', borderRadius: '10px', fontSize: '0.85rem', fontWeight: '700', marginBottom: '20px', background: '#ecfdf5', border: '1px solid rgba(16,185,129,0.2)', color: '#10b981' }}>
+                        <CheckCircle size={16} style={{ display: 'inline', marginRight: '6px', verticalAlign: 'text-bottom' }} /> {donationSuccess}
+                      </div>
+                    )}
+
+                    <form onSubmit={handleRecordDonation} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                      <div>
+                        <label style={{ fontSize: '0.78rem', fontWeight: '800', color: '#1e293b', textTransform: 'uppercase', display: 'block', marginBottom: '6px' }}>Donor Name</label>
+                        <input
+                          type="text"
+                          required
+                          value={donationForm.name}
+                          onChange={(e) => setDonationForm({ ...donationForm, name: e.target.value })}
+                          placeholder="e.g. John Doe"
+                          style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: '1px solid #cbd5e1', fontWeight: '600', color: '#0f172a', outline: 'none', boxSizing: 'border-box' }}
+                        />
+                      </div>
+
+                      <div style={{ display: 'flex', gap: '12px' }}>
+                        <div style={{ flex: 1 }}>
+                          <label style={{ fontSize: '0.78rem', fontWeight: '800', color: '#1e293b', textTransform: 'uppercase', display: 'block', marginBottom: '6px' }}>Amount (₹)</label>
+                          <input
+                            type="number"
+                            required
+                            min="1"
+                            value={donationForm.amount}
+                            onChange={(e) => setDonationForm({ ...donationForm, amount: e.target.value })}
+                            placeholder="e.g. 500"
+                            style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: '1px solid #cbd5e1', fontWeight: '600', color: '#0f172a', outline: 'none', boxSizing: 'border-box' }}
+                          />
+                        </div>
+                        <div style={{ flex: 1 }}>
+                          <label style={{ fontSize: '0.78rem', fontWeight: '800', color: '#1e293b', textTransform: 'uppercase', display: 'block', marginBottom: '6px' }}>Collection Date</label>
+                          <input
+                            type="date"
+                            required
+                            value={donationForm.date}
+                            onChange={(e) => setDonationForm({ ...donationForm, date: e.target.value })}
+                            style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: '1px solid #cbd5e1', fontWeight: '600', color: '#0f172a', outline: 'none', boxSizing: 'border-box' }}
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label style={{ fontSize: '0.78rem', fontWeight: '800', color: '#1e293b', textTransform: 'uppercase', display: 'block', marginBottom: '6px' }}>Address</label>
+                        <input
+                          type="text"
+                          required
+                          value={donationForm.address}
+                          onChange={(e) => setDonationForm({ ...donationForm, address: e.target.value })}
+                          placeholder="e.g. 123 Street Name, Town"
+                          style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: '1px solid #cbd5e1', fontWeight: '600', color: '#0f172a', outline: 'none', boxSizing: 'border-box' }}
+                        />
+                      </div>
+
+                      <div>
+                        <label style={{ fontSize: '0.78rem', fontWeight: '800', color: '#1e293b', textTransform: 'uppercase', display: 'block', marginBottom: '6px' }}>Purpose</label>
+                        <input
+                          type="text"
+                          required
+                          value={donationForm.purpose}
+                          onChange={(e) => setDonationForm({ ...donationForm, purpose: e.target.value })}
+                          placeholder="e.g. Festival fund"
+                          style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: '1px solid #cbd5e1', fontWeight: '600', color: '#0f172a', outline: 'none', boxSizing: 'border-box' }}
+                        />
+                        <span style={{ fontSize: '0.7rem', color: '#64748b', marginTop: '4px', display: 'block' }}>
+                          This purpose will be automatically pre-filled for your next donation entry.
+                        </span>
+                      </div>
+
+                      <button
+                        type="submit"
+                        disabled={submittingDonation}
+                        style={{
+                          background: '#10b981',
+                          color: 'white',
+                          border: 'none',
+                          padding: '12px',
+                          borderRadius: '12px',
+                          fontWeight: '800',
+                          cursor: 'pointer',
+                          marginTop: '8px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '6px'
+                        }}
+                      >
+                        {submittingDonation ? 'Saving...' : <><CheckCircle size={16} /> Save Donation</>}
+                      </button>
+                    </form>
+                  </div>
+                </div>
+              )}
+            </div>
           )}
 
           {/* TAB 5: Update Password */}
