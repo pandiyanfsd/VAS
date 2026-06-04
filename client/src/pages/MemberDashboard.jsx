@@ -134,52 +134,23 @@ const MemberDashboard = () => {
     }
   };
 
-  // 2. Fetch ONLY this family's own profile, dues, and payment history (parallelized for maximum speed)
+  // 2. Fetch all dashboard initial data in a single optimized HTTP round-trip
   const fetchMemberData = async (memberId) => {
     setLoading(true);
     setErrorMsg('');
     try {
-      // Fetch only profile, dues, and payments in parallel (concurrency optimization)
-      const [memberRes, duesRes, paymentsRes] = await Promise.all([
-        axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/members/${memberId}`),
-        axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/dues/member/${memberId}`),
-        axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/payments?memberId=${memberId}`)
-      ]);
+      const res = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/members/dashboard-init/${memberId}`);
+      const { member, dues, payments, showMemberCentralFinancials, centralStats, centralExpenses } = res.data;
 
-      setMember(memberRes.data);
-      setDues(duesRes.data || []);
-      setPayments(paymentsRes.data || []);
+      setMember(member);
+      setDues(dues || []);
+      setPayments(payments || []);
+      setMemberFinancialsVisible(!!showMemberCentralFinancials);
 
-      // Fetch Visibility Setting for Central Financials
-      try {
-        const settingRes = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/settings/showMemberCentralFinancials`);
-        const visible = !!settingRes.data.value;
-        setMemberFinancialsVisible(visible);
-
-        if (visible) {
-          // Parallelize central village summary and expense ledger fetching
-          const [summaryRes, expensesRes] = await Promise.all([
-            axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/reports/summary`),
-            axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/expenses`)
-          ]);
-
-          const data = summaryRes.data;
-          setCentralStats({
-            totalAllotted: (data.totalCollected || 0) + (data.totalPendingDues || 0),
-            totalCollected: data.totalCollected || 0,
-            totalSpent: data.totalSpent || 0,
-            currentBalance: data.currentBalance || 0,
-            totalPendingDues: data.totalPendingDues || 0
-          });
-
-          // Filter to only approved expenses to display to the member
-          const approved = (expensesRes.data || []).filter(e => e.status === 'approved');
-          setCentralExpenses(approved);
-        }
-      } catch (err) {
-        console.error("Failed to load setting or central summary", err);
+      if (showMemberCentralFinancials && centralStats) {
+        setCentralStats(centralStats);
+        setCentralExpenses(centralExpenses || []);
       }
-
     } catch (err) {
       console.error("Error loading member dashboard details", err);
       setErrorMsg("Failed to connect to the backend server. Please try again.");

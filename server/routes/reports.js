@@ -11,9 +11,6 @@ const { healDues } = require('../services/duesService');
 // Get overall Financial summary (Overall funds and expense details)
 router.get('/summary', async (req, res) => {
   try {
-    // Run self-healing to verify database sync (throttled)
-    await healDues(false);
-
     // 1. Total Collections (Payments)
     // Apply optional filters from query params
     const paymentMatch = {};

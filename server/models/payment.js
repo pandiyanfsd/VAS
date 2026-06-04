@@ -44,6 +44,10 @@ const paymentSchema = new mongoose.Schema({
   }
 });
 
+paymentSchema.index({ memberId: 1 });
+paymentSchema.index({ cashierId: 1 });
+
+
 // Auto-generate receipt number before saving
 paymentSchema.pre('save', async function() {
   const doc = this;

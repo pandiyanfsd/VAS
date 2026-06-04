@@ -30,9 +30,9 @@ router.post('/', async (req, res) => {
 // Get all expenses with advanced filters (custom date, etc.)
 router.get('/', async (req, res) => {
   try {
-    const { startDate, endDate, category, cashierId } = req.query;
+    const { startDate, endDate, category, cashierId, status } = req.query;
     let query = {};
-
+ 
     // Custom Date wise / Monthly / Yearly (Client can just pass start and end of month/year)
     if (startDate && endDate) {
       const start = new Date(startDate);
@@ -43,9 +43,10 @@ router.get('/', async (req, res) => {
         $lte: end 
       };
     }
-
+ 
     if (category) query.category = category;
     if (cashierId) query.cashierId = cashierId;
+    if (status) query.status = status;
 
     const expenses = await Expense.find(query)
       .populate('cashierId', 'name')

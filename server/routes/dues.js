@@ -7,9 +7,6 @@ const { healDues } = require('../services/duesService');
 // Get all due records with populated members and funds (for global dashboard & financial explorer audit)
 router.get('/', async (req, res) => {
   try {
-    // 1. Run dynamic database self-healing (throttled)
-    await healDues(false);
-
     // 2. Fetch all dues with populated records
     const dues = await MemberFundDue.find({})
       .populate('memberId', 'name phone memberId familyId subFamilyMembers')

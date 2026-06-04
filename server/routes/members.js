@@ -65,6 +65,82 @@ router.get('/', async (req, res) => {
   }
 });
 
+// Get all initial data for the Member Dashboard (optimized single HTTP round-trip)
+router.get('/dashboard-init/:id', async (req, res) => {
+  try {
+    const memberId = req.params.id;
+    const { MemberFundDue } = require('../models/memberFundDue');
+    const { Payment } = require('../models/payment');
+    const { Setting } = require('../models/setting');
+    const { Expense } = require('../models/expense');
+
+    // Run core lookups in parallel
+    const [member, dues, payments, setting] = await Promise.all([
+      Member.findById(memberId),
+      MemberFundDue.find({ memberId }).populate('fundId').sort({ createdAt: -1 }),
+      Payment.find({ memberId })
+        .populate('memberId', 'name memberId familyId phone')
+        .populate('cashierId', 'name cashierId')
+        .populate('splitDetails.fundId', 'name fundType')
+        .sort({ paymentDate: -1 }),
+      Setting.findOne({ key: 'showMemberCentralFinancials' })
+    ]);
+
+    if (!member) {
+      return res.status(404).send({ error: 'Member not found.' });
+    }
+
+    const showMemberCentralFinancials = setting ? !!setting.value : false;
+    let centralStats = null;
+    let centralExpenses = null;
+
+    if (showMemberCentralFinancials) {
+      // Fetch central treasury stats & approved expenses in parallel
+      const [paymentsAgg, expensesAgg, duesAgg, approvedExpenses] = await Promise.all([
+        Payment.aggregate([
+          { $group: { _id: null, totalCollected: { $sum: "$totalAmountPaid" } } }
+        ]),
+        Expense.aggregate([
+          { $match: { status: 'approved' } },
+          { $group: { _id: null, totalSpent: { $sum: "$amount" } } }
+        ]),
+        MemberFundDue.aggregate([
+          { $project: { pendingAmount: { $subtract: ["$totalDueAmount", "$amountPaid"] } } },
+          { $group: { _id: null, totalPending: { $sum: "$pendingAmount" } } }
+        ]),
+        Expense.find({ status: 'approved' })
+          .populate('cashierId', 'name')
+          .sort({ date: -1 })
+      ]);
+
+      const totalCollected = paymentsAgg.length > 0 ? paymentsAgg[0].totalCollected : 0;
+      const totalSpent = expensesAgg.length > 0 ? expensesAgg[0].totalSpent : 0;
+      const totalPending = duesAgg.length > 0 ? duesAgg[0].totalPending : 0;
+
+      centralStats = {
+        totalAllotted: totalCollected + totalPending,
+        totalCollected,
+        totalSpent,
+        currentBalance: totalCollected - totalSpent,
+        totalPendingDues: totalPending
+      };
+      centralExpenses = approvedExpenses || [];
+    }
+
+    res.send({
+      member,
+      dues,
+      payments,
+      showMemberCentralFinancials,
+      centralStats,
+      centralExpenses
+    });
+  } catch (error) {
+    console.error('Error fetching member dashboard init data:', error);
+    res.status(500).send({ error: 'Server error loading dashboard' });
+  }
+});
+
 // Get a single member by ID (used by Member Dashboard to load own profile only)
 router.get('/:id', async (req, res) => {
   try {
