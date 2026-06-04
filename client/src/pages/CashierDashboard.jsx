@@ -108,6 +108,7 @@ const CashierDashboard = () => {
   const [donationSuccess, setDonationSuccess] = useState('');
   const [filterDonationPurpose, setFilterDonationPurpose] = useState('all');
   const [submittingDonation, setSubmittingDonation] = useState(false);
+  const [showPurposeSuggestions, setShowPurposeSuggestions] = useState(false);
 
   const handleOpenDetailsModal = (type) => {
     setDetailsModalType(type);
@@ -496,6 +497,13 @@ const CashierDashboard = () => {
     m.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     (m.familyId && m.familyId.toString().includes(searchTerm))
   ).slice(0, 5);
+
+  // Autocomplete suggestions for donation purpose (matching spellings)
+  const matchingPurposes = donationForm.purpose.trim() === ''
+    ? []
+    : [...new Set(donations.map(d => d.purpose).filter(Boolean))]
+        .filter(p => p.toLowerCase().includes(donationForm.purpose.toLowerCase()) && p.toLowerCase() !== donationForm.purpose.toLowerCase())
+        .slice(0, 5);
 
   return (
     <div className="admin-layout">
@@ -1293,14 +1301,39 @@ const CashierDashboard = () => {
 
                       <div>
                         <label style={{ fontSize: '0.78rem', fontWeight: '800', color: '#1e293b', textTransform: 'uppercase', display: 'block', marginBottom: '6px' }}>Purpose</label>
-                        <input
-                          type="text"
-                          required
-                          value={donationForm.purpose}
-                          onChange={(e) => setDonationForm({ ...donationForm, purpose: e.target.value })}
-                          placeholder="e.g. Festival fund"
-                          style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: '1px solid #cbd5e1', fontWeight: '600', color: '#0f172a', outline: 'none', boxSizing: 'border-box' }}
-                        />
+                        <div style={{ position: 'relative' }}>
+                          <input
+                            type="text"
+                            required
+                            value={donationForm.purpose}
+                            onChange={(e) => {
+                              setDonationForm({ ...donationForm, purpose: e.target.value });
+                              setShowPurposeSuggestions(true);
+                            }}
+                            onFocus={() => setShowPurposeSuggestions(true)}
+                            onBlur={() => setTimeout(() => setShowPurposeSuggestions(false), 200)}
+                            placeholder="e.g. Festival fund"
+                            style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: '1px solid #cbd5e1', fontWeight: '600', color: '#0f172a', outline: 'none', boxSizing: 'border-box' }}
+                          />
+                          {showPurposeSuggestions && matchingPurposes.length > 0 && (
+                            <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: 'white', borderRadius: '10px', border: '1px solid #cbd5e1', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)', zIndex: 1000, marginTop: '4px', overflow: 'hidden' }}>
+                              {matchingPurposes.map((purpose, idx) => (
+                                <div
+                                  key={idx}
+                                  onMouseDown={() => {
+                                    setDonationForm({ ...donationForm, purpose });
+                                    setShowPurposeSuggestions(false);
+                                  }}
+                                  style={{ padding: '10px 14px', cursor: 'pointer', borderBottom: '1px solid #f1f5f9', fontSize: '0.85rem', fontWeight: '600', color: '#0f172a', transition: 'background 0.2s' }}
+                                  onMouseEnter={(e) => e.currentTarget.style.background = '#f1f5f9'}
+                                  onMouseLeave={(e) => e.currentTarget.style.background = 'white'}
+                                >
+                                  {purpose}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
                         <span style={{ fontSize: '0.7rem', color: '#64748b', marginTop: '4px', display: 'block' }}>
                           This purpose will be automatically pre-filled for your next donation entry.
                         </span>
