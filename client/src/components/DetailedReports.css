@@ -403,7 +403,8 @@
   .content-header,
   .filters-panel,
   .tabs-header,
-  .sidebar-overlay {
+  .sidebar-overlay,
+  .search-bar-wrapper {
     display: none !important;
   }
 

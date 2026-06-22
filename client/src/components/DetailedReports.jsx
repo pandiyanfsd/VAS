@@ -646,10 +646,21 @@ const DetailedReports = () => {
                       </tr>
                     )}
                   </tbody>
+                  {filteredPayments.length > 0 && (
+                    <tfoot>
+                      <tr style={{ background: 'rgba(255, 255, 255, 0.7)', fontWeight: 'bold', borderTop: '2px solid rgba(0, 0, 0, 0.1)' }}>
+                        <td colSpan="5" style={{ textAlign: 'right', padding: '16px 20px', fontWeight: 'bold' }}>Total Amount:</td>
+                        <td className="amount-cell text-teal" style={{ padding: '16px 20px', fontSize: '1.05rem', fontWeight: '800' }}>
+                          ₹{filteredPayments.reduce((sum, p) => sum + (p.totalAmountPaid || 0), 0).toLocaleString()}
+                        </td>
+                        <td></td>
+                      </tr>
+                    </tfoot>
+                  )}
                 </table>
               </div>
             )}
-
+ 
             {/* EXPENSES TAB */}
             {activeTab === 'expenses' && (
               <div className="table-wrapper glass-panel animate-fade-in">
@@ -683,6 +694,16 @@ const DetailedReports = () => {
                       </tr>
                     )}
                   </tbody>
+                  {filteredExpenses.length > 0 && (
+                    <tfoot>
+                      <tr style={{ background: 'rgba(255, 255, 255, 0.7)', fontWeight: 'bold', borderTop: '2px solid rgba(0, 0, 0, 0.1)' }}>
+                        <td colSpan="5" style={{ textAlign: 'right', padding: '16px 20px', fontWeight: 'bold' }}>Total Amount:</td>
+                        <td className="amount-cell text-pink" style={{ padding: '16px 20px', fontSize: '1.05rem', fontWeight: '800' }}>
+                          ₹{filteredExpenses.reduce((sum, e) => sum + (e.amount || 0), 0).toLocaleString()}
+                        </td>
+                      </tr>
+                    </tfoot>
+                  )}
                 </table>
               </div>
             )}
