@@ -8,7 +8,7 @@ import ManageCashiers from '../components/ManageCashiers';
 import ManageFunds from '../components/ManageFunds';
 import DetailedReports from '../components/DetailedReports';
 import Overview from '../components/Overview';
-import Summary from '../components/Summary';
+import ManageDonations from '../components/ManageDonations';
 import TreasuryHandover from '../components/TreasuryHandover';
 import ManageExpenses from '../components/ManageExpenses';
 
@@ -39,7 +39,7 @@ const AdminDashboard = () => {
     { path: '/admin/treasury', name: 'Treasury Handover', icon: <Coins size={20} /> },
     { path: '/admin/expenses', name: 'Manage Expenses', icon: <Receipt size={20} /> },
     { path: '/admin/reports', name: 'Detailed Reports', icon: <BarChart size={20} /> },
-    { path: '/admin/summary', name: 'Summary', icon: <PieChart size={20} /> },
+    { path: '/admin/donations', name: 'Donations', icon: <Coins size={20} /> },
   ];
 
   return (
@@ -99,7 +99,7 @@ const AdminDashboard = () => {
             <Route path="treasury" element={<TreasuryHandover />} />
             <Route path="expenses" element={<ManageExpenses />} />
             <Route path="reports" element={<DetailedReports />} />
-            <Route path="summary" element={<Summary />} />
+            <Route path="donations" element={<ManageDonations />} />
           </Routes>
         </div>
       </main>

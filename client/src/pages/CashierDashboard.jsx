@@ -16,7 +16,9 @@ import {
   User,
   ArrowRight,
   RefreshCw,
-  Lock
+  Lock,
+  Edit,
+  Trash2
 } from 'lucide-react';
 import './AdminDashboard.css'; // Reuses structural sidebar layouts
 import ManageExpenses from '../components/ManageExpenses';
@@ -57,6 +59,41 @@ const CashierDashboard = () => {
     const mm = String(today.getMonth() + 1).padStart(2, '0');
     const dd = String(today.getDate()).padStart(2, '0');
     return `${yyyy}-${mm}-${dd}`;
+  };
+
+  const isDateInDuration = (dateVal, durationMode) => {
+    if (!dateVal) return false;
+    const dDate = new Date(dateVal);
+    const today = new Date();
+    
+    // Set hours to 0 to compare dates accurately
+    const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const tomorrowStart = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000);
+    
+    if (durationMode === 'today') {
+      return dDate >= todayStart && dDate < tomorrowStart;
+    }
+    
+    if (durationMode === 'week') {
+      const dayOfWeek = today.getDay();
+      const sundayStart = new Date(todayStart.getTime() - dayOfWeek * 24 * 60 * 60 * 1000);
+      return dDate >= sundayStart && dDate < tomorrowStart;
+    }
+    
+    if (durationMode === 'month') {
+      const firstOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+      return dDate >= firstOfMonth && dDate < tomorrowStart;
+    }
+
+    if (durationMode === 'custom') {
+      if (!donationStartDate && !donationEndDate) return true;
+      const start = donationStartDate ? new Date(donationStartDate) : new Date(0);
+      const end = donationEndDate ? new Date(donationEndDate) : new Date();
+      end.setHours(23, 59, 59, 999);
+      return dDate >= start && dDate <= end;
+    }
+
+    return true; // 'all'
   };
 
   // Payment Form State
@@ -109,6 +146,36 @@ const CashierDashboard = () => {
   const [filterDonationPurpose, setFilterDonationPurpose] = useState('all');
   const [submittingDonation, setSubmittingDonation] = useState(false);
   const [showPurposeSuggestions, setShowPurposeSuggestions] = useState(false);
+  const [editingDonationId, setEditingDonationId] = useState(null);
+  const [filterDonationDuration, setFilterDonationDuration] = useState('all');
+  const [donationStartDate, setDonationStartDate] = useState('');
+  const [donationEndDate, setDonationEndDate] = useState('');
+
+  // Custom Confirmation Dialog State
+  const [confirmConfig, setConfirmConfig] = useState({
+    isOpen: false,
+    title: '',
+    message: '',
+    confirmText: 'Confirm',
+    cancelText: 'Cancel',
+    onConfirm: () => {},
+    type: 'primary'
+  });
+
+  const showCustomConfirm = ({ title, message, confirmText, cancelText, onConfirm, type = 'primary' }) => {
+    setConfirmConfig({
+      isOpen: true,
+      title,
+      message,
+      confirmText: confirmText || 'Confirm',
+      cancelText: cancelText || 'Cancel',
+      onConfirm: () => {
+        onConfirm();
+        setConfirmConfig(prev => ({ ...prev, isOpen: false }));
+      },
+      type
+    });
+  };
 
   const handleOpenDetailsModal = (type) => {
     setDetailsModalType(type);
@@ -247,7 +314,7 @@ const CashierDashboard = () => {
     }
   };
 
-  const handleRecordDonation = async (e) => {
+  const handleRecordDonation = (e) => {
     e.preventDefault();
     if (!cashier) return;
     setDonationError('');
@@ -270,47 +337,101 @@ const CashierDashboard = () => {
       return;
     }
 
-    setSubmittingDonation(true);
-    try {
-      const payload = {
-        name: donationForm.name,
-        date: donationForm.date,
-        amount: Number(donationForm.amount),
-        address: donationForm.address,
-        purpose: donationForm.purpose,
-        cashierId: cashier._id
-      };
+    const actionWord = editingDonationId ? "update" : "record";
+    showCustomConfirm({
+      title: editingDonationId ? "Update Donation Record" : "Save Donation Record",
+      message: `Are you sure you want to ${actionWord} this donation of ₹${donationForm.amount} from ${donationForm.name.toUpperCase()} for ${donationForm.purpose.toUpperCase()}?`,
+      confirmText: editingDonationId ? "Yes, Update" : "Yes, Save",
+      type: 'primary',
+      onConfirm: async () => {
+        setSubmittingDonation(true);
+        try {
+          const payload = {
+            name: donationForm.name.toUpperCase(),
+            date: donationForm.date,
+            amount: Number(donationForm.amount),
+            address: donationForm.address.toUpperCase(),
+            purpose: donationForm.purpose.toUpperCase(),
+            cashierId: cashier._id
+          };
 
-      await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/donations`, payload);
-      
-      // Save last used purpose for reuse
-      localStorage.setItem('last_donation_purpose', donationForm.purpose);
-      
-      setDonationSuccess('Donation recorded successfully!');
-      
-      // Reset form, reusing purpose
-      setDonationForm({
-        name: '',
-        date: getTodayDateString(),
-        amount: '',
-        address: '',
-        purpose: donationForm.purpose
-      });
+          if (editingDonationId) {
+            await axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/donations/${editingDonationId}`, payload);
+            setDonationSuccess('Donation updated successfully!');
+          } else {
+            await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/donations`, payload);
+            setDonationSuccess('Donation recorded successfully!');
+          }
+          
+          // Save last used purpose for reuse
+          localStorage.setItem('last_donation_purpose', donationForm.purpose.toUpperCase());
+          
+          // Reset form, reusing purpose
+          setDonationForm({
+            name: '',
+            date: getTodayDateString(),
+            amount: '',
+            address: '',
+            purpose: donationForm.purpose.toUpperCase()
+          });
+          setEditingDonationId(null);
 
-      // Close modal after brief timeout
-      setTimeout(() => {
-        setShowDonationModal(false);
-        setDonationSuccess('');
-      }, 1500);
+          // Close modal after brief timeout
+          setTimeout(() => {
+            setShowDonationModal(false);
+            setDonationSuccess('');
+          }, 1500);
 
-      // Refresh list
-      fetchDonations();
-    } catch (err) {
-      console.error("Error recording donation", err);
-      setDonationError(err.response?.data?.error || 'Failed to record donation. Please try again.');
-    } finally {
-      setSubmittingDonation(false);
+          // Refresh list
+          fetchDonations();
+        } catch (err) {
+          console.error("Error saving donation", err);
+          setDonationError(err.response?.data?.error || 'Failed to save donation. Please try again.');
+        } finally {
+          setSubmittingDonation(false);
+        }
+      }
+    });
+  };
+
+  const handleDeleteDonation = (id) => {
+    showCustomConfirm({
+      title: "Delete Donation Record",
+      message: "Are you sure you want to delete this donation record? This action cannot be undone.",
+      confirmText: "Yes, Delete",
+      type: 'danger',
+      onConfirm: async () => {
+        try {
+          await axios.delete(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/donations/${id}`);
+          fetchDonations();
+        } catch (err) {
+          console.error("Error deleting donation", err);
+          alert(err.response?.data?.error || "Failed to delete donation record.");
+        }
+      }
+    });
+  };
+
+  const handleEditDonationClick = (donation) => {
+    setEditingDonationId(donation._id);
+    let dateStr = getTodayDateString();
+    if (donation.date) {
+      if (typeof donation.date === 'string') {
+        dateStr = donation.date.split('T')[0];
+      } else if (donation.date instanceof Date) {
+        dateStr = donation.date.toISOString().split('T')[0];
+      }
     }
+    setDonationForm({
+      name: donation.name ? donation.name.toUpperCase() : '',
+      date: dateStr,
+      amount: donation.amount || '',
+      address: donation.address ? donation.address.toUpperCase() : '',
+      purpose: donation.purpose ? donation.purpose.toUpperCase() : ''
+    });
+    setDonationError('');
+    setDonationSuccess('');
+    setShowDonationModal(true);
   };
 
   // 4. Look up specific member dues
@@ -1133,6 +1254,14 @@ const CashierDashboard = () => {
                 </div>
                 <button
                   onClick={() => {
+                    setEditingDonationId(null);
+                    setDonationForm({
+                      name: '',
+                      date: getTodayDateString(),
+                      amount: '',
+                      address: '',
+                      purpose: localStorage.getItem('last_donation_purpose') || ''
+                    });
                     setDonationError('');
                     setDonationSuccess('');
                     setShowDonationModal(true);
@@ -1155,8 +1284,8 @@ const CashierDashboard = () => {
               </div>
 
               {/* Filters for Donations */}
-              <div style={{ display: 'flex', gap: '12px', marginBottom: '20px', flexWrap: 'wrap', alignItems: 'center' }}>
-                <div style={{ minWidth: '200px' }}>
+              <div style={{ display: 'flex', gap: '16px', marginBottom: '24px', flexWrap: 'wrap', alignItems: 'center' }}>
+                <div style={{ flex: '1 1 200px' }}>
                   <label style={{ fontSize: '0.78rem', fontWeight: '800', color: '#64748b', textTransform: 'uppercase', display: 'block', marginBottom: '6px' }}>
                     Filter by Purpose
                   </label>
@@ -1180,7 +1309,130 @@ const CashierDashboard = () => {
                     ))}
                   </select>
                 </div>
+
+                <div style={{ flex: '1 1 200px' }}>
+                  <label style={{ fontSize: '0.78rem', fontWeight: '800', color: '#64748b', textTransform: 'uppercase', display: 'block', marginBottom: '6px' }}>
+                    Filter by Duration
+                  </label>
+                  <select
+                    value={filterDonationDuration}
+                    onChange={(e) => setFilterDonationDuration(e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '10px 14px',
+                      borderRadius: '10px',
+                      border: '1px solid #cbd5e1',
+                      fontWeight: '700',
+                      color: '#0f172a',
+                      background: 'white',
+                      outline: 'none'
+                    }}
+                  >
+                    <option value="all">All Time</option>
+                    <option value="today">Today</option>
+                    <option value="week">This Week</option>
+                    <option value="month">This Month</option>
+                    <option value="custom">Custom Date Range</option>
+                  </select>
+                </div>
+
+                {filterDonationDuration === 'custom' && (
+                  <>
+                    <div style={{ flex: '1 1 150px' }}>
+                      <label style={{ fontSize: '0.78rem', fontWeight: '800', color: '#64748b', textTransform: 'uppercase', display: 'block', marginBottom: '6px' }}>
+                        Start Date
+                      </label>
+                      <input
+                        type="date"
+                        value={donationStartDate}
+                        onChange={(e) => setDonationStartDate(e.target.value)}
+                        style={{
+                          width: '100%',
+                          padding: '10px 14px',
+                          borderRadius: '10px',
+                          border: '1px solid #cbd5e1',
+                          fontWeight: '600',
+                          color: '#0f172a',
+                          outline: 'none',
+                          boxSizing: 'border-box'
+                        }}
+                      />
+                    </div>
+                    <div style={{ flex: '1 1 150px' }}>
+                      <label style={{ fontSize: '0.78rem', fontWeight: '800', color: '#64748b', textTransform: 'uppercase', display: 'block', marginBottom: '6px' }}>
+                        End Date
+                      </label>
+                      <input
+                        type="date"
+                        value={donationEndDate}
+                        onChange={(e) => setDonationEndDate(e.target.value)}
+                        style={{
+                          width: '100%',
+                          padding: '10px 14px',
+                          borderRadius: '10px',
+                          border: '1px solid #cbd5e1',
+                          fontWeight: '600',
+                          color: '#0f172a',
+                          outline: 'none',
+                          boxSizing: 'border-box'
+                        }}
+                      />
+                    </div>
+                  </>
+                )}
               </div>
+
+              {/* Donation Metrics Banner */}
+              {(() => {
+                const overallTotal = donations.reduce((sum, d) => sum + (d.amount || 0), 0);
+                const purposeWiseTotal = donations
+                  .filter(d => filterDonationPurpose === 'all' || d.purpose === filterDonationPurpose)
+                  .reduce((sum, d) => sum + (d.amount || 0), 0);
+                const durationWiseTotal = donations
+                  .filter(d => isDateInDuration(d.date, filterDonationDuration))
+                  .reduce((sum, d) => sum + (d.amount || 0), 0);
+                const combinedFilteredTotal = donations
+                  .filter(d => (filterDonationPurpose === 'all' || d.purpose === filterDonationPurpose) && isDateInDuration(d.date, filterDonationDuration))
+                  .reduce((sum, d) => sum + (d.amount || 0), 0);
+
+                return (
+                  <div className="totals-summary-row" style={{ marginBottom: '24px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
+                    <div style={{ background: 'rgba(79, 70, 229, 0.05)', borderRadius: '16px', padding: '16px 20px', border: '1px solid rgba(79, 70, 229, 0.12)' }}>
+                      <span style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: '800', textTransform: 'uppercase', display: 'block', marginBottom: '4px' }}>Overall Total Collected</span>
+                      <strong style={{ fontSize: '1.4rem', color: '#4f46e5', fontWeight: '900' }}>₹{overallTotal.toLocaleString('en-IN')}</strong>
+                    </div>
+
+                    <div style={{ background: 'rgba(16, 185, 129, 0.05)', borderRadius: '16px', padding: '16px 20px', border: '1px solid rgba(16, 185, 129, 0.12)' }}>
+                      <span style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: '800', textTransform: 'uppercase', display: 'block', marginBottom: '4px' }}>Purpose-Wise Total</span>
+                      <strong style={{ fontSize: '1.4rem', color: '#10b981', fontWeight: '900' }}>
+                        ₹{purposeWiseTotal.toLocaleString('en-IN')}
+                        <span style={{ fontSize: '0.75rem', fontWeight: '600', color: '#475569', display: 'block', marginTop: '2px', textTransform: 'none' }}>
+                          {filterDonationPurpose === 'all' ? '(All Purposes)' : `(Purpose: "${filterDonationPurpose}")`}
+                        </span>
+                      </strong>
+                    </div>
+
+                    <div style={{ background: 'rgba(232, 121, 249, 0.05)', borderRadius: '16px', padding: '16px 20px', border: '1px solid rgba(232, 121, 249, 0.12)' }}>
+                      <span style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: '800', textTransform: 'uppercase', display: 'block', marginBottom: '4px' }}>Duration-Wise Total</span>
+                      <strong style={{ fontSize: '1.4rem', color: '#d946ef', fontWeight: '900' }}>
+                        ₹{durationWiseTotal.toLocaleString('en-IN')}
+                        <span style={{ fontSize: '0.75rem', fontWeight: '600', color: '#475569', display: 'block', marginTop: '2px', textTransform: 'none' }}>
+                          {filterDonationDuration === 'all' && '(All Time)'}
+                          {filterDonationDuration === 'today' && '(Today)'}
+                          {filterDonationDuration === 'week' && '(This Week)'}
+                          {filterDonationDuration === 'month' && '(This Month)'}
+                          {filterDonationDuration === 'custom' && `(${donationStartDate || 'Start'} to ${donationEndDate || 'End'})`}
+                        </span>
+                      </strong>
+                    </div>
+
+                    <div style={{ background: 'rgba(249, 115, 22, 0.05)', borderRadius: '16px', padding: '16px 20px', border: '1px solid rgba(249, 115, 22, 0.12)' }}>
+                      <span style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: '800', textTransform: 'uppercase', display: 'block', marginBottom: '4px' }}>Combined Filtered Total</span>
+                      <strong style={{ fontSize: '1.4rem', color: '#f97316', fontWeight: '900' }}>₹{combinedFilteredTotal.toLocaleString('en-IN')}</strong>
+                    </div>
+                  </div>
+                );
+              })()}
 
               {/* Donations Table */}
               {loadingHistory ? (
@@ -1202,11 +1454,12 @@ const CashierDashboard = () => {
                         <th style={{ padding: '12px 10px' }}>Amount</th>
                         <th style={{ padding: '12px 10px' }}>Address</th>
                         <th style={{ padding: '12px 10px' }}>Date</th>
+                        <th style={{ padding: '12px 10px', textAlign: 'center' }}>Actions</th>
                       </tr>
                     </thead>
                     <tbody style={{ fontSize: '0.9rem', fontWeight: '600', color: '#0f172a' }}>
                       {donations
-                        .filter(d => filterDonationPurpose === 'all' || d.purpose === filterDonationPurpose)
+                        .filter(d => (filterDonationPurpose === 'all' || d.purpose === filterDonationPurpose) && isDateInDuration(d.date, filterDonationDuration))
                         .map((d, index) => (
                           <tr key={d._id || index} style={{ borderBottom: '1px solid #e2e8f0', background: index % 2 === 0 ? '#f8fafc' : 'white' }}>
                             <td style={{ padding: '14px 10px', fontWeight: '700' }}>{d.name}</td>
@@ -1215,11 +1468,29 @@ const CashierDashboard = () => {
                                 {d.purpose}
                               </span>
                             </td>
-                            <td style={{ padding: '14px 10px', color: '#10b981', fontWeight: '800' }}>₹{d.amount.toLocaleString()}</td>
+                            <td style={{ padding: '14px 10px', color: '#10b981', fontWeight: '800' }}>₹{d.amount.toLocaleString('en-IN')}</td>
                             <td style={{ padding: '14px 10px', color: '#475569', maxWidth: '200px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={d.address}>
                               {d.address}
                             </td>
                             <td style={{ padding: '14px 10px', color: '#64748b' }}>{new Date(d.date).toLocaleDateString('en-IN')}</td>
+                            <td style={{ padding: '14px 10px', textAlign: 'center' }}>
+                              <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
+                                <button 
+                                  onClick={() => handleEditDonationClick(d)}
+                                  style={{ background: 'transparent', border: 'none', color: '#4f46e5', cursor: 'pointer', padding: '4px' }}
+                                  title="Edit Donation"
+                                >
+                                  <Edit size={16} />
+                                </button>
+                                <button 
+                                  onClick={() => handleDeleteDonation(d._id)}
+                                  style={{ background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', padding: '4px' }}
+                                  title="Delete Donation"
+                                >
+                                  <Trash2 size={16} />
+                                </button>
+                              </div>
+                            </td>
                           </tr>
                         ))}
                     </tbody>
@@ -1232,8 +1503,22 @@ const CashierDashboard = () => {
                 <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10000, padding: '20px' }}>
                   <div className="glass-panel p-8 animate-scale-up" style={{ background: 'white', borderRadius: '24px', width: '100%', maxWidth: '480px', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-                      <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: '950', color: '#0f172a' }}>Record General Donation</h3>
-                      <button onClick={() => setShowDonationModal(false)} style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: '#64748b' }}>
+                      <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: '950', color: '#0f172a' }}>
+                        {editingDonationId ? "Edit Donation Record" : "Record General Donation"}
+                      </h3>
+                      <button onClick={() => {
+                        setShowDonationModal(false);
+                        setEditingDonationId(null);
+                        setDonationForm({
+                          name: '',
+                          date: getTodayDateString(),
+                          amount: '',
+                          address: '',
+                          purpose: localStorage.getItem('last_donation_purpose') || ''
+                        });
+                        setDonationError('');
+                        setDonationSuccess('');
+                      }} style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: '#64748b' }}>
                         <X size={20} />
                       </button>
                     </div>
@@ -1256,8 +1541,8 @@ const CashierDashboard = () => {
                           type="text"
                           required
                           value={donationForm.name}
-                          onChange={(e) => setDonationForm({ ...donationForm, name: e.target.value })}
-                          placeholder="e.g. John Doe"
+                          onChange={(e) => setDonationForm({ ...donationForm, name: e.target.value.toUpperCase() })}
+                          placeholder="e.g. JOHN DOE"
                           style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: '1px solid #cbd5e1', fontWeight: '600', color: '#0f172a', outline: 'none', boxSizing: 'border-box' }}
                         />
                       </div>
@@ -1293,8 +1578,8 @@ const CashierDashboard = () => {
                           type="text"
                           required
                           value={donationForm.address}
-                          onChange={(e) => setDonationForm({ ...donationForm, address: e.target.value })}
-                          placeholder="e.g. 123 Street Name, Town"
+                          onChange={(e) => setDonationForm({ ...donationForm, address: e.target.value.toUpperCase() })}
+                          placeholder="e.g. 123 STREET NAME, TOWN"
                           style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: '1px solid #cbd5e1', fontWeight: '600', color: '#0f172a', outline: 'none', boxSizing: 'border-box' }}
                         />
                       </div>
@@ -1307,12 +1592,12 @@ const CashierDashboard = () => {
                             required
                             value={donationForm.purpose}
                             onChange={(e) => {
-                              setDonationForm({ ...donationForm, purpose: e.target.value });
+                              setDonationForm({ ...donationForm, purpose: e.target.value.toUpperCase() });
                               setShowPurposeSuggestions(true);
                             }}
                             onFocus={() => setShowPurposeSuggestions(true)}
                             onBlur={() => setTimeout(() => setShowPurposeSuggestions(false), 200)}
-                            placeholder="e.g. Festival fund"
+                            placeholder="e.g. FESTIVAL FUND"
                             style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: '1px solid #cbd5e1', fontWeight: '600', color: '#0f172a', outline: 'none', boxSizing: 'border-box' }}
                           />
                           {showPurposeSuggestions && matchingPurposes.length > 0 && (
@@ -1321,7 +1606,7 @@ const CashierDashboard = () => {
                                 <div
                                   key={idx}
                                   onMouseDown={() => {
-                                    setDonationForm({ ...donationForm, purpose });
+                                    setDonationForm({ ...donationForm, purpose: purpose.toUpperCase() });
                                     setShowPurposeSuggestions(false);
                                   }}
                                   style={{ padding: '10px 14px', cursor: 'pointer', borderBottom: '1px solid #f1f5f9', fontSize: '0.85rem', fontWeight: '600', color: '#0f172a', transition: 'background 0.2s' }}
@@ -1357,9 +1642,75 @@ const CashierDashboard = () => {
                           gap: '6px'
                         }}
                       >
-                        {submittingDonation ? 'Saving...' : <><CheckCircle size={16} /> Save Donation</>}
+                        {submittingDonation ? 'Saving...' : (
+                          editingDonationId ? <><CheckCircle size={16} /> Update Donation</> : <><CheckCircle size={16} /> Save Donation</>
+                        )}
                       </button>
                     </form>
+                  </div>
+                </div>
+              )}
+
+              {/* Custom Confirmation Modal */}
+              {confirmConfig.isOpen && (
+                <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15, 23, 42, 0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 20000, padding: '20px' }}>
+                  <div className="glass-panel p-6 animate-scale-up" style={{ background: 'white', borderRadius: '24px', width: '100%', maxWidth: '400px', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)', border: '1px solid #e2e8f0', textAlign: 'center' }}>
+                    <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '16px' }}>
+                      <div style={{ 
+                        background: confirmConfig.type === 'danger' ? '#fee2e2' : 'rgba(79, 70, 229, 0.1)', 
+                        color: confirmConfig.type === 'danger' ? '#ef4444' : '#4f46e5', 
+                        width: '56px', 
+                        height: '56px', 
+                        borderRadius: '50%', 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        justifyContent: 'center' 
+                      }}>
+                        {confirmConfig.type === 'danger' ? <AlertCircle size={28} /> : <CheckCircle size={28} />}
+                      </div>
+                    </div>
+                    <h3 style={{ margin: '0 0 8px 0', fontSize: '1.2rem', fontWeight: '950', color: '#0f172a' }}>{confirmConfig.title}</h3>
+                    <p style={{ margin: '0 0 24px 0', fontSize: '0.9rem', fontWeight: '600', color: '#475569', lineHeight: '1.5' }}>{confirmConfig.message}</p>
+                    <div style={{ display: 'flex', gap: '12px' }}>
+                      <button 
+                        type="button"
+                        onClick={() => setConfirmConfig(prev => ({ ...prev, isOpen: false }))}
+                        style={{ 
+                          flex: 1, 
+                          padding: '12px', 
+                          borderRadius: '12px', 
+                          border: '1px solid #cbd5e1', 
+                          background: 'white', 
+                          color: '#475569', 
+                          fontWeight: '800', 
+                          cursor: 'pointer',
+                          transition: 'background 0.2s'
+                        }}
+                        onMouseEnter={(e) => e.currentTarget.style.background = '#f8fafc'}
+                        onMouseLeave={(e) => e.currentTarget.style.background = 'white'}
+                      >
+                        {confirmConfig.cancelText}
+                      </button>
+                      <button 
+                        type="button"
+                        onClick={confirmConfig.onConfirm}
+                        style={{ 
+                          flex: 1, 
+                          padding: '12px', 
+                          borderRadius: '12px', 
+                          border: 'none', 
+                          background: confirmConfig.type === 'danger' ? '#ef4444' : '#4f46e5', 
+                          color: 'white', 
+                          fontWeight: '800', 
+                          cursor: 'pointer',
+                          transition: 'background 0.2s'
+                        }}
+                        onMouseEnter={(e) => e.currentTarget.style.background = confirmConfig.type === 'danger' ? '#dc2626' : '#4338ca'}
+                        onMouseLeave={(e) => e.currentTarget.style.background = confirmConfig.type === 'danger' ? '#ef4444' : '#4f46e5'}
+                      >
+                        {confirmConfig.confirmText}
+                      </button>
+                    </div>
                   </div>
                 </div>
               )}

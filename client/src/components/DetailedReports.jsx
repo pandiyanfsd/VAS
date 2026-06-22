@@ -12,7 +12,8 @@ import {
   Download,
   Search,
   BookOpen,
-  Users
+  Users,
+  Coins
 } from 'lucide-react';
 import './DetailedReports.css';
 
@@ -40,11 +41,13 @@ const DetailedReports = () => {
   const [payments, setPayments] = useState([]);
   const [expenses, setExpenses] = useState([]);
   const [dues, setDues] = useState([]);
+  const [donations, setDonations] = useState([]); // General donations
   const [searchQuery, setSearchQuery] = useState('');
   const [familyViewTab, setFamilyViewTab] = useState('unpaid');
   const [summary, setSummary] = useState({
     totalCollected: 0,
     totalSpent: 0,
+    totalDonations: 0,
     currentBalance: 0,
     totalPendingDues: 0,
     duesBreakdown: []
@@ -86,9 +89,9 @@ const DetailedReports = () => {
     };
     fetchFunds();
     
-    // Set default date range to Start of Application (Jan 1, 2026) and current date (Today)
+    // Set default date range to Start of Application (Jan 1, 2020) and current date (Today)
     const today = formatDateLocal(new Date());
-    setStartDate('2026-01-01');
+    setStartDate('2020-01-01');
     setEndDate(today);
     setActiveRange('all_time');
   }, []);
@@ -125,6 +128,10 @@ const DetailedReports = () => {
       // 4. Fetch all Member Dues for the detailed Audit Sheet
       const duesRes = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/dues`);
       setDues(duesRes.data);
+
+      // 5. Fetch general donations for detailed audit
+      const donationsRes = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/donations`);
+      setDonations(donationsRes.data || []);
 
     } catch (err) {
       console.error("Error fetching report data", err);
@@ -168,7 +175,7 @@ const DetailedReports = () => {
       start = new Date(now.getFullYear(), 0, 1);
       end = new Date(now.getFullYear(), 11, 31);
     } else if (range === 'all_time') {
-      start = new Date(2026, 0, 1); // Start of Application (Jan 1, 2026)
+      start = new Date(2020, 0, 1); // Start of Application (Jan 1, 2020)
       end = new Date(); // Current date (Today)
     }
 
@@ -194,7 +201,39 @@ const DetailedReports = () => {
   // Calculations for current period (filtered data) using fully filtered lists
   const periodIncome = filteredPayments.reduce((acc, curr) => acc + curr.totalAmountPaid, 0);
   const periodExpense = filteredExpenses.reduce((acc, curr) => acc + curr.amount, 0);
-  const periodNet = periodIncome - periodExpense;
+
+  // Filter donations dynamically based on selected date range, selected specific fund, and fund type
+  const filteredDonations = donations.filter(d => {
+    // 1. Date Range Filter
+    if (startDate && endDate) {
+      const dDate = new Date(d.date);
+      const start = new Date(startDate);
+      const end = new Date(endDate);
+      start.setHours(0, 0, 0, 0);
+      end.setHours(23, 59, 59, 999);
+      if (dDate < start || dDate > end) {
+        return false;
+      }
+    }
+    // 2. Specific Fund Filter (general donations are not linked to Dues Funds)
+    if (selectedFundId) {
+      return false;
+    }
+    // 3. Fund Type Filter
+    if (selectedFundType && selectedFundType.toLowerCase() !== 'donation') {
+      return false;
+    }
+    // 4. Search filter (match donor name or purpose)
+    const query = searchQuery.toLowerCase();
+    const donorName = d.name?.toLowerCase() || '';
+    const purpose = d.purpose?.toLowerCase() || '';
+    const matchesSearch = !query || donorName.includes(query) || purpose.includes(query);
+
+    return matchesSearch;
+  });
+
+  const periodDonationAmount = filteredDonations.reduce((acc, curr) => acc + (curr.amount || 0), 0);
+  const periodNet = periodIncome + periodDonationAmount - periodExpense;
 
   // Filter dues dynamically based on selected date range, selected specific fund, selected fund type, and search query (Family ID / Name)
   const filteredDuesForExplorer = dues.filter(d => {
@@ -661,8 +700,13 @@ const DetailedReports = () => {
                     
                     <div className="summary-list">
                       <div className="summary-item">
-                        <span>Total Lifetime Collections</span>
+                        <span>Total Lifetime Collections (Dues)</span>
                         <strong className="text-teal">₹{summary.totalCollected.toLocaleString()}</strong>
+                      </div>
+
+                      <div className="summary-item">
+                        <span>Total Lifetime Donations</span>
+                        <strong className="text-teal" style={{ color: '#10b981' }}>₹{(summary.totalDonations || 0).toLocaleString()}</strong>
                       </div>
                       
                       <div className="summary-item">
@@ -685,19 +729,19 @@ const DetailedReports = () => {
                         <div className="progress-info">
                           <span>Treasury Reserve Ratio</span>
                           <strong>
-                            {summary.totalCollected > 0 
-                              ? Math.max(0, Math.min(100, ((summary.totalCollected - summary.totalSpent) / summary.totalCollected * 100))).toFixed(0)
+                            {(summary.totalCollected + (summary.totalDonations || 0)) > 0 
+                              ? Math.max(0, Math.min(100, (((summary.totalCollected + (summary.totalDonations || 0)) - summary.totalSpent) / (summary.totalCollected + (summary.totalDonations || 0)) * 100))).toFixed(0)
                               : 0}%
                           </strong>
                         </div>
                         <div className="progress-bar-bg">
                           <div className="progress-bar-fill teal" style={{ 
-                            width: `${summary.totalCollected > 0 
-                              ? Math.max(0, Math.min(100, ((summary.totalCollected - summary.totalSpent) / summary.totalCollected * 100))) 
+                            width: `${(summary.totalCollected + (summary.totalDonations || 0)) > 0 
+                              ? Math.max(0, Math.min(100, (((summary.totalCollected + (summary.totalDonations || 0)) - summary.totalSpent) / (summary.totalCollected + (summary.totalDonations || 0)) * 100))) 
                               : 0}%` 
                           }}></div>
                         </div>
-                        <p className="progress-helper-text">Indicates the percentage of collections retained as reserve funds</p>
+                        <p className="progress-helper-text">Indicates the percentage of total collections & donations retained as reserve funds</p>
                       </div>
                     </div>
                   </div>
@@ -711,8 +755,13 @@ const DetailedReports = () => {
                     
                     <div className="summary-list">
                       <div className="summary-item">
-                        <span>Collections in Period</span>
+                        <span>Collections (Dues) in Period</span>
                         <strong className="text-teal">₹{periodIncome.toLocaleString()}</strong>
+                      </div>
+
+                      <div className="summary-item">
+                        <span>Donations in Period</span>
+                        <strong className="text-teal" style={{ color: '#10b981' }}>₹{periodDonationAmount.toLocaleString()}</strong>
                       </div>
 
                       <div className="summary-item">
@@ -735,15 +784,15 @@ const DetailedReports = () => {
                         <div className="progress-info">
                           <span>Period Net Profit Margin</span>
                           <strong>
-                            {periodIncome > 0 
-                              ? Math.max(0, Math.min(100, ((periodIncome - periodExpense) / periodIncome * 100))).toFixed(0)
+                            {(periodIncome + periodDonationAmount) > 0 
+                              ? Math.max(0, Math.min(100, (((periodIncome + periodDonationAmount) - periodExpense) / (periodIncome + periodDonationAmount) * 100))).toFixed(0)
                               : 0}%
                           </strong>
                         </div>
                         <div className="progress-bar-bg">
                           <div className="progress-bar-fill indigo" style={{ 
-                            width: `${periodIncome > 0 
-                              ? Math.max(0, Math.min(100, ((periodIncome - periodExpense) / periodIncome * 100))) 
+                            width: `${(periodIncome + periodDonationAmount) > 0 
+                              ? Math.max(0, Math.min(100, (((periodIncome + periodDonationAmount) - periodExpense) / (periodIncome + periodDonationAmount) * 100))) 
                               : 0}%` 
                           }}></div>
                         </div>
@@ -798,11 +847,16 @@ const DetailedReports = () => {
             {activeTab === 'dues_explorer' && (
               <div className="dues-explorer-wrapper animate-fade-in">
                 {/* Summary Cards for Filtered Totals */}
-                <div className="summary-cards mb-6 animate-fade-in">
+                <div className="summary-cards mb-6 animate-fade-in" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
                   <div className="summary-card">
                     <DollarSign size={20} className="icon" />
-                    <h4>Total Collected</h4>
+                    <h4>Dues Collected</h4>
                     <p className="text-teal font-bold">₹{periodIncome.toLocaleString()}</p>
+                  </div>
+                  <div className="summary-card">
+                    <Coins size={20} className="icon" style={{ color: '#10b981' }} />
+                    <h4>Donations Collected</h4>
+                    <p className="text-teal font-bold" style={{ color: '#10b981' }}>₹{periodDonationAmount.toLocaleString()}</p>
                   </div>
                   <div className="summary-card">
                     <TrendingDown size={20} className="icon" />
@@ -811,7 +865,7 @@ const DetailedReports = () => {
                   </div>
                   <div className="summary-card">
                     <TrendingUp size={20} className="icon" />
-                    <h4>Total Allotted</h4>
+                    <h4>Total Allotted Dues</h4>
                     <p className="text-indigo font-bold">₹{auditExpectedTotal.toLocaleString()}</p>
                   </div>
                 </div>

@@ -72,7 +72,8 @@ const MemberDashboard = () => {
     totalCollected: 0,
     totalSpent: 0,
     currentBalance: 0,
-    totalPendingDues: 0
+    totalPendingDues: 0,
+    totalDonations: 0
   });
   const [centralExpenses, setCentralExpenses] = useState([]);
   const [showExpenseDetails, setShowExpenseDetails] = useState(false);
@@ -956,14 +957,26 @@ const MemberDashboard = () => {
                       </span>
                     </div>
 
-                    <div className="glass-panel p-6" style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '16px' }}>
-                      <span style={{ fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.5px', color: '#16a34a', fontWeight: '800' }}>
+                    <div className="glass-panel p-6" style={{ background: '#f0f9ff', border: '1px solid #bae6fd', borderRadius: '16px' }}>
+                      <span style={{ fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.5px', color: '#0284c7', fontWeight: '800' }}>
+                        Total Donations Collected
+                      </span>
+                      <h2 style={{ fontSize: '1.8rem', fontWeight: '900', color: '#0284c7', margin: '6px 0 0 0' }}>
+                        ₹{(centralStats.totalDonations || 0).toLocaleString()}
+                      </h2>
+                      <span style={{ fontSize: '0.72rem', color: '#0284c7', display: 'block', marginTop: '4px', opacity: 0.8 }}>
+                        General public contributions
+                      </span>
+                    </div>
+
+                    <div className="glass-panel p-6" style={{ background: 'linear-gradient(135deg, #ea580c 0%, #f59e0b 100%)', border: 'none', color: '#ffffff', borderRadius: '16px', boxShadow: '0 10px 20px rgba(234, 88, 12, 0.15)' }}>
+                      <span style={{ fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.5px', color: '#ffedd5', fontWeight: '800' }}>
                         Net Account Balance
                       </span>
-                      <h2 style={{ fontSize: '1.8rem', fontWeight: '900', color: '#16a34a', margin: '6px 0 0 0' }}>
+                      <h2 style={{ fontSize: '1.8rem', fontWeight: '900', color: '#ffffff', margin: '6px 0 0 0' }}>
                         ₹{centralStats.currentBalance.toLocaleString()}
                       </h2>
-                      <span style={{ fontSize: '0.72rem', color: '#86efac', display: 'block', marginTop: '4px' }}>
+                      <span style={{ fontSize: '0.72rem', color: '#ffedd5', display: 'block', marginTop: '4px' }}>
                         Currently held in central accounts
                       </span>
                     </div>

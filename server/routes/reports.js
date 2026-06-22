@@ -5,6 +5,7 @@ const { Expense } = require('../models/expense');
 const { MemberFundDue } = require('../models/memberFundDue');
 const { Member } = require('../models/member');
 const { Fund } = require('../models/fund');
+const { Donation } = require('../models/donation');
 
 const { healDues } = require('../services/duesService');
 
@@ -42,13 +43,24 @@ router.get('/summary', async (req, res) => {
     ]);
     const totalSpent = expenses.length > 0 ? expenses[0].totalSpent : 0;
 
-    // 3. Total Outstanding Dues (Expected but unpaid)
+    // 3. Total Donations
+    // Apply optional filters to donations
+    const donationMatch = {};
+    if (req.query.startDate || req.query.endDate) {
+      donationMatch.date = {};
+      if (req.query.startDate) donationMatch.date.$gte = new Date(req.query.startDate);
+      if (req.query.endDate) donationMatch.date.$lte = new Date(req.query.endDate);
+    }
+    const donations = await Donation.aggregate([
+      { $match: donationMatch },
+      { $group: { _id: null, totalDonations: { $sum: "$amount" } } }
+    ]);
+    const totalDonations = donations.length > 0 ? donations[0].totalDonations : 0;
+
+    // 4. Total Outstanding Dues (Expected but unpaid)
     // Apply optional filters to outstanding dues
     const duesMatch = {};
     if (req.query.fundId) duesMatch.fundId = req.query.fundId;
-    if (req.query.fundType) {
-      // Need to lookup fund to match type later
-    }
     const dues = await MemberFundDue.aggregate([
       { $match: duesMatch },
       { $project: { pendingAmount: { $subtract: ["$totalDueAmount", "$amountPaid"] } } },
@@ -56,7 +68,7 @@ router.get('/summary', async (req, res) => {
     ]);
     const totalPending = dues.length > 0 ? dues[0].totalPending : 0;
 
-    // 4. Detailed Breakdown of Outstanding Dues grouped by Individual Fund & Fund Type
+    // 5. Detailed Breakdown of Outstanding Dues grouped by Individual Fund & Fund Type
     // Apply optional filters to dues breakdown
     const duesBreakdownMatch = {};
     if (req.query.fundId) duesBreakdownMatch.fundId = req.query.fundId;
@@ -93,7 +105,8 @@ router.get('/summary', async (req, res) => {
     res.send({
       totalCollected,
       totalSpent,
-      currentBalance: totalCollected - totalSpent,
+      totalDonations,
+      currentBalance: totalCollected + totalDonations - totalSpent,
       totalPendingDues: totalPending,
       duesBreakdown: duesBreakdown.map(db => ({
         fundName: db._id.fundName,

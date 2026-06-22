@@ -13,7 +13,8 @@ import {
   ArrowUpDown,
   Search,
   Receipt,
-  Percent
+  Percent,
+  Coins
 } from 'lucide-react';
 import './DetailedReports.css'; // Leverage our premium layout tokens
 
@@ -28,7 +29,8 @@ const Overview = () => {
     totalSpent: 0,
     currentBalance: 0,
     totalPendingDues: 0,
-    duesBreakdown: []
+    duesBreakdown: [],
+    totalDonations: 0
   });
 
   const [recentPayments, setRecentPayments] = useState([]);
@@ -99,7 +101,8 @@ const Overview = () => {
           totalSpent: summaryRes.data.totalSpent || 0,
           currentBalance: summaryRes.data.currentBalance || 0,
           totalPendingDues: summaryRes.data.totalPendingDues || 0,
-          duesBreakdown: summaryRes.data.duesBreakdown || []
+          duesBreakdown: summaryRes.data.duesBreakdown || [],
+          totalDonations: summaryRes.data.totalDonations || 0
         });
 
       } catch (error) {
@@ -293,21 +296,21 @@ const Overview = () => {
           </div>
         </div>
 
-        <div className="metric-card glass-panel text-indigo cursor-pointer" onClick={() => navigate('/admin/reports')}>
-          <div className="metric-icon"><TrendingUp size={24} /></div>
+        <div className="metric-card glass-panel cursor-pointer" style={{ color: '#0284c7' }} onClick={() => navigate('/admin/donations')}>
+          <div className="metric-icon" style={{ background: 'rgba(2, 132, 199, 0.1)', color: '#0284c7' }}><Coins size={24} /></div>
           <div className="metric-info">
-            <span className="label">Net Treasury Balance</span>
-            <h3>₹{stats.currentBalance.toLocaleString()}</h3>
-            <span className="helper-link text-indigo">Balance Sheet <ArrowRight size={12} /></span>
+            <span className="label">Total Donations Collected</span>
+            <h3 style={{ color: '#0369a1' }}>₹{stats.totalDonations.toLocaleString()}</h3>
+            <span className="helper-link" style={{ color: '#0284c7' }}>View Donations Ledger <ArrowRight size={12} /></span>
           </div>
         </div>
 
-        <div className="metric-card glass-panel cursor-pointer" style={{ color: '#0284c7' }} onClick={() => navigate('/admin/reports')}>
-          <div className="metric-icon" style={{ background: 'rgba(2, 132, 199, 0.1)', color: '#0284c7' }}><Percent size={24} /></div>
+        <div className="metric-card glass-panel cursor-pointer" onClick={() => navigate('/admin/reports')} style={{ background: 'linear-gradient(135deg, #ea580c 0%, #f59e0b 100%)', border: 'none', color: '#ffffff', boxShadow: '0 10px 20px rgba(234, 88, 12, 0.25)' }}>
+          <div className="metric-icon" style={{ background: 'rgba(255, 255, 255, 0.2)', color: '#ffffff' }}><TrendingUp size={24} /></div>
           <div className="metric-info">
-            <span className="label">Overall Collection Rate</span>
-            <h3 style={{ color: '#0369a1' }}>{stats.totalAllotted > 0 ? Math.round((stats.totalCollected / stats.totalAllotted) * 100) : 0}%</h3>
-            <span className="helper-link" style={{ color: '#0284c7' }}>Audit Health Rate <ArrowRight size={12} /></span>
+            <span className="label" style={{ color: '#ffedd5' }}>Net Treasury Balance</span>
+            <h3 style={{ color: '#ffffff' }}>₹{stats.currentBalance.toLocaleString()}</h3>
+            <span className="helper-link" style={{ color: '#ffedd5' }}>Balance Sheet <ArrowRight size={12} /></span>
           </div>
         </div>
       </div>

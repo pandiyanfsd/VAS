@@ -73,6 +73,7 @@ router.get('/dashboard-init/:id', async (req, res) => {
     const { Payment } = require('../models/payment');
     const { Setting } = require('../models/setting');
     const { Expense } = require('../models/expense');
+    const { Donation } = require('../models/donation');
 
     // Run core lookups in parallel
     const [member, dues, payments, setting] = await Promise.all([
@@ -95,8 +96,8 @@ router.get('/dashboard-init/:id', async (req, res) => {
     let centralExpenses = null;
 
     if (showMemberCentralFinancials) {
-      // Fetch central treasury stats & approved expenses in parallel
-      const [paymentsAgg, expensesAgg, duesAgg, approvedExpenses] = await Promise.all([
+      // Fetch central treasury stats, approved expenses, and donations in parallel
+      const [paymentsAgg, expensesAgg, duesAgg, approvedExpenses, donationsAgg] = await Promise.all([
         Payment.aggregate([
           { $group: { _id: null, totalCollected: { $sum: "$totalAmountPaid" } } }
         ]),
@@ -110,19 +111,24 @@ router.get('/dashboard-init/:id', async (req, res) => {
         ]),
         Expense.find({ status: 'approved' })
           .populate('cashierId', 'name')
-          .sort({ date: -1 })
+          .sort({ date: -1 }),
+        Donation.aggregate([
+          { $group: { _id: null, totalDonations: { $sum: "$amount" } } }
+        ])
       ]);
 
       const totalCollected = paymentsAgg.length > 0 ? paymentsAgg[0].totalCollected : 0;
       const totalSpent = expensesAgg.length > 0 ? expensesAgg[0].totalSpent : 0;
       const totalPending = duesAgg.length > 0 ? duesAgg[0].totalPending : 0;
+      const totalDonations = donationsAgg.length > 0 ? donationsAgg[0].totalDonations : 0;
 
       centralStats = {
         totalAllotted: totalCollected + totalPending,
         totalCollected,
         totalSpent,
-        currentBalance: totalCollected - totalSpent,
-        totalPendingDues: totalPending
+        currentBalance: totalCollected + totalDonations - totalSpent,
+        totalPendingDues: totalPending,
+        totalDonations
       };
       centralExpenses = approvedExpenses || [];
     }
