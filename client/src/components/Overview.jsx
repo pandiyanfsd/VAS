@@ -205,6 +205,41 @@ const Overview = () => {
 
   return (
     <div className="overview-wrapper animate-fade-in">
+      {/* Overview Header Section */}
+      <div className="overview-header-print-hide" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', flexWrap: 'wrap', gap: '16px' }}>
+        <div>
+          <h1 style={{ fontSize: '1.8rem', fontWeight: '900', color: '#0f172a', margin: 0, letterSpacing: '-0.5px' }}>Dashboard Overview</h1>
+          <span style={{ fontSize: '0.85rem', color: '#64748b', fontWeight: '500' }}>Real-time summary statistics and financial indicators of Denalai Village</span>
+        </div>
+        <button 
+          onClick={() => window.print()}
+          style={{
+            background: 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)',
+            color: '#ffffff',
+            border: 'none',
+            padding: '12px 24px',
+            borderRadius: '12px',
+            fontWeight: '700',
+            fontSize: '0.875rem',
+            cursor: 'pointer',
+            boxShadow: '0 4px 12px rgba(3, 105, 161, 0.2)',
+            transition: 'all 0.2s ease',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px'
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.transform = 'translateY(-1px)';
+            e.currentTarget.style.boxShadow = '0 6px 16px rgba(3, 105, 161, 0.3)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.transform = 'translateY(0)';
+            e.currentTarget.style.boxShadow = '0 4px 12px rgba(3, 105, 161, 0.2)';
+          }}
+        >
+          📄 Export Consolidated Report
+        </button>
+      </div>
       {/* Settings Toggle Banner */}
       <div className="glass-panel p-4 mb-6" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(255, 255, 255, 0.85)', borderRadius: '16px', border: '1px solid rgba(226, 232, 240, 0.8)', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)', marginBottom: '24px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -717,6 +752,259 @@ const Overview = () => {
           </div>
         </div>
       )}
+      {/* 6. Print-Only Consolidated Report Section */}
+      <div className="print-only-consolidated-report" style={{ fontFamily: "'Inter', sans-serif", color: '#000000', padding: '20px' }}>
+        <div style={{ textAlign: 'center', marginBottom: '30px', borderBottom: '3px solid #0f172a', paddingBottom: '15px' }}>
+          <h1 style={{ fontSize: '2rem', fontWeight: '800', margin: '0 0 5px 0', textTransform: 'uppercase', letterSpacing: '1px' }}>Denalai Village Council</h1>
+          <h2 style={{ fontSize: '1.25rem', fontWeight: '600', margin: '0 0 10px 0', color: '#4b5563' }}>Central Treasury Consolidated Financial Statement</h2>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', color: '#4b5563', marginTop: '15px' }}>
+            <span><strong>Date Generated:</strong> {new Date().toLocaleDateString('en-IN')}</span>
+            <span><strong>Time:</strong> {new Date().toLocaleTimeString('en-IN')}</span>
+            <span><strong>Report Status:</strong> OFFICIAL CENTRAL AUDIT</span>
+          </div>
+        </div>
+
+        {/* Section 1: Executive Overview Summary Table */}
+        <div style={{ marginBottom: '25px' }}>
+          <h3 style={{ fontSize: '1.1rem', fontWeight: '800', borderBottom: '1px solid #cbd5e1', paddingBottom: '6px', marginBottom: '12px', textTransform: 'uppercase' }}>
+            1. Executive Financial Indicators
+          </h3>
+          <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '15px' }}>
+            <thead>
+              <tr style={{ background: '#f1f5f9', textAlign: 'left' }}>
+                <th style={{ padding: '10px', border: '1px solid #cbd5e1', fontSize: '0.85rem' }}>Financial Metric Indicator</th>
+                <th style={{ padding: '10px', border: '1px solid #cbd5e1', fontSize: '0.85rem', textAlign: 'right' }}>Calculated Value</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td style={{ padding: '10px', border: '1px solid #cbd5e1', fontSize: '0.85rem' }}>Registered Families</td>
+                <td style={{ padding: '10px', border: '1px solid #cbd5e1', fontSize: '0.85rem', textAlign: 'right', fontWeight: 'bold' }}>{stats.memberCount} Families</td>
+              </tr>
+              <tr>
+                <td style={{ padding: '10px', border: '1px solid #cbd5e1', fontSize: '0.85rem' }}>Active Dues Funds</td>
+                <td style={{ padding: '10px', border: '1px solid #cbd5e1', fontSize: '0.85rem', textAlign: 'right', fontWeight: 'bold' }}>{stats.fundCount} Funds</td>
+              </tr>
+              <tr>
+                <td style={{ padding: '10px', border: '1px solid #cbd5e1', fontSize: '0.85rem' }}>Total Dues Amount Allotted</td>
+                <td style={{ padding: '10px', border: '1px solid #cbd5e1', fontSize: '0.85rem', textAlign: 'right', fontWeight: 'bold' }}>₹{stats.totalAllotted.toLocaleString()}</td>
+              </tr>
+              <tr>
+                <td style={{ padding: '10px', border: '1px solid #cbd5e1', fontSize: '0.85rem' }}>Total Dues Collected</td>
+                <td style={{ padding: '10px', border: '1px solid #cbd5e1', fontSize: '0.85rem', textAlign: 'right', fontWeight: 'bold', color: '#0d9488' }}>₹{stats.totalCollected.toLocaleString()}</td>
+              </tr>
+              <tr>
+                <td style={{ padding: '10px', border: '1px solid #cbd5e1', fontSize: '0.85rem' }}>Outstanding Unpaid Dues</td>
+                <td style={{ padding: '10px', border: '1px solid #cbd5e1', fontSize: '0.85rem', textAlign: 'right', fontWeight: 'bold', color: '#db2777' }}>₹{stats.totalPendingDues.toLocaleString()}</td>
+              </tr>
+              <tr>
+                <td style={{ padding: '10px', border: '1px solid #cbd5e1', fontSize: '0.85rem' }}>Total Donations Collected</td>
+                <td style={{ padding: '10px', border: '1px solid #cbd5e1', fontSize: '0.85rem', textAlign: 'right', fontWeight: 'bold', color: '#0284c7' }}>₹{stats.totalDonations.toLocaleString()}</td>
+              </tr>
+              <tr>
+                <td style={{ padding: '10px', border: '1px solid #cbd5e1', fontSize: '0.85rem' }}>Total Village Expenses Paid</td>
+                <td style={{ padding: '10px', border: '1px solid #cbd5e1', fontSize: '0.85rem', textAlign: 'right', fontWeight: 'bold', color: '#e11d48' }}>₹{stats.totalSpent.toLocaleString()}</td>
+              </tr>
+              <tr style={{ background: '#f8fafc', fontWeight: 'bold' }}>
+                <td style={{ padding: '10px', border: '1px solid #cbd5e1', fontSize: '0.9rem' }}>NET TREASURY BALANCE (RESERVE)</td>
+                <td style={{ padding: '10px', border: '1px solid #cbd5e1', fontSize: '0.9rem', textAlign: 'right', fontWeight: '900', color: '#ea580c' }}>₹{stats.currentBalance.toLocaleString()}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        {/* Section 2: Revenue Stream Breakdown */}
+        <div style={{ marginBottom: '25px' }}>
+          <h3 style={{ fontSize: '1.1rem', fontWeight: '800', borderBottom: '1px solid #cbd5e1', paddingBottom: '6px', marginBottom: '12px', textTransform: 'uppercase' }}>
+            2. Revenue Stream Share Analysis
+          </h3>
+          <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '15px' }}>
+            <thead>
+              <tr style={{ background: '#f1f5f9', textAlign: 'left' }}>
+                <th style={{ padding: '10px', border: '1px solid #cbd5e1', fontSize: '0.85rem' }}>Income Channel</th>
+                <th style={{ padding: '10px', border: '1px solid #cbd5e1', fontSize: '0.85rem', textAlign: 'right' }}>Amount</th>
+                <th style={{ padding: '10px', border: '1px solid #cbd5e1', fontSize: '0.85rem', textAlign: 'right' }}>Percentage Share</th>
+              </tr>
+            </thead>
+            <tbody>
+              {(() => {
+                const totalIncome = stats.totalCollected + stats.totalDonations;
+                const duesShare = totalIncome > 0 ? ((stats.totalCollected / totalIncome) * 100).toFixed(1) : '0.0';
+                const donationsShare = totalIncome > 0 ? ((stats.totalDonations / totalIncome) * 100).toFixed(1) : '0.0';
+                return (
+                  <>
+                    <tr>
+                      <td style={{ padding: '10px', border: '1px solid #cbd5e1', fontSize: '0.85rem' }}>Dues Collections (Villager Payments)</td>
+                      <td style={{ padding: '10px', border: '1px solid #cbd5e1', fontSize: '0.85rem', textAlign: 'right' }}>₹{stats.totalCollected.toLocaleString()}</td>
+                      <td style={{ padding: '10px', border: '1px solid #cbd5e1', fontSize: '0.85rem', textAlign: 'right' }}>{duesShare}%</td>
+                    </tr>
+                    <tr>
+                      <td style={{ padding: '10px', border: '1px solid #cbd5e1', fontSize: '0.85rem' }}>General Public Donations</td>
+                      <td style={{ padding: '10px', border: '1px solid #cbd5e1', fontSize: '0.85rem', textAlign: 'right' }}>₹{stats.totalDonations.toLocaleString()}</td>
+                      <td style={{ padding: '10px', border: '1px solid #cbd5e1', fontSize: '0.85rem', textAlign: 'right' }}>{donationsShare}%</td>
+                    </tr>
+                    <tr style={{ background: '#f8fafc', fontWeight: 'bold' }}>
+                      <td style={{ padding: '10px', border: '1px solid #cbd5e1', fontSize: '0.85rem' }}>Total Gross Revenue Collections</td>
+                      <td style={{ padding: '10px', border: '1px solid #cbd5e1', fontSize: '0.85rem', textAlign: 'right' }}>₹{totalIncome.toLocaleString()}</td>
+                      <td style={{ padding: '10px', border: '1px solid #cbd5e1', fontSize: '0.85rem', textAlign: 'right' }}>100.0%</td>
+                    </tr>
+                  </>
+                );
+              })()}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Section 3: Treasury Reserve Ratio Analysis */}
+        <div style={{ marginBottom: '25px' }}>
+          <h3 style={{ fontSize: '1.1rem', fontWeight: '800', borderBottom: '1px solid #cbd5e1', paddingBottom: '6px', marginBottom: '12px', textTransform: 'uppercase' }}>
+            3. Expense & Reserve Retention Analysis
+          </h3>
+          <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '15px' }}>
+            <thead>
+              <tr style={{ background: '#f1f5f9', textAlign: 'left' }}>
+                <th style={{ padding: '10px', border: '1px solid #cbd5e1', fontSize: '0.85rem' }}>Financial Metric Indicator</th>
+                <th style={{ padding: '10px', border: '1px solid #cbd5e1', fontSize: '0.85rem', textAlign: 'right' }}>Value</th>
+              </tr>
+            </thead>
+            <tbody>
+              {(() => {
+                const totalIncome = stats.totalCollected + stats.totalDonations;
+                const reserveRatio = totalIncome > 0 ? ((stats.currentBalance / totalIncome) * 100).toFixed(1) : '0.0';
+                const burnRate = totalIncome > 0 ? ((stats.totalSpent / totalIncome) * 100).toFixed(1) : '0.0';
+                return (
+                  <>
+                    <tr>
+                      <td style={{ padding: '10px', border: '1px solid #cbd5e1', fontSize: '0.85rem' }}>Total Cash Outflow (Expenses Paid)</td>
+                      <td style={{ padding: '10px', border: '1px solid #cbd5e1', fontSize: '0.85rem', textAlign: 'right', fontWeight: 'bold', color: '#e11d48' }}>₹{stats.totalSpent.toLocaleString()}</td>
+                    </tr>
+                    <tr>
+                      <td style={{ padding: '10px', border: '1px solid #cbd5e1', fontSize: '0.85rem' }}>Net Cash Reserve Balance</td>
+                      <td style={{ padding: '10px', border: '1px solid #cbd5e1', fontSize: '0.85rem', textAlign: 'right', fontWeight: 'bold', color: '#16a34a' }}>₹{stats.currentBalance.toLocaleString()}</td>
+                    </tr>
+                    <tr>
+                      <td style={{ padding: '10px', border: '1px solid #cbd5e1', fontSize: '0.85rem' }}>Outlay Consumption Rate (Expenses / Revenue)</td>
+                      <td style={{ padding: '10px', border: '1px solid #cbd5e1', fontSize: '0.85rem', textAlign: 'right' }}>{burnRate}%</td>
+                    </tr>
+                    <tr style={{ background: '#f8fafc', fontWeight: 'bold' }}>
+                      <td style={{ padding: '10px', border: '1px solid #cbd5e1', fontSize: '0.9rem' }}>TREASURY RESERVE RETENTION RATE</td>
+                      <td style={{ padding: '10px', border: '1px solid #cbd5e1', fontSize: '0.9rem', textAlign: 'right', fontWeight: '900', color: '#16a34a' }}>{reserveRatio}%</td>
+                    </tr>
+                  </>
+                );
+              })()}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Page break for printing to look perfect */}
+        <div style={{ pageBreakBefore: 'always' }}></div>
+
+        {/* Section 4: Fund Progress Ledger */}
+        <div style={{ marginBottom: '25px', paddingTop: '20px' }}>
+          <h3 style={{ fontSize: '1.1rem', fontWeight: '800', borderBottom: '1px solid #cbd5e1', paddingBottom: '6px', marginBottom: '12px', textTransform: 'uppercase' }}>
+            4. Active Dues Collections Status Ledger
+          </h3>
+          <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '15px' }}>
+            <thead>
+              <tr style={{ background: '#f1f5f9', textAlign: 'left' }}>
+                <th style={{ padding: '8px', border: '1px solid #cbd5e1', fontSize: '0.75rem' }}>Fund Name</th>
+                <th style={{ padding: '8px', border: '1px solid #cbd5e1', fontSize: '0.75rem' }}>Type</th>
+                <th style={{ padding: '8px', border: '1px solid #cbd5e1', fontSize: '0.75rem', textAlign: 'right' }}>Target/Fam</th>
+                <th style={{ padding: '8px', border: '1px solid #cbd5e1', fontSize: '0.75rem', textAlign: 'right' }}>Expected Total</th>
+                <th style={{ padding: '8px', border: '1px solid #cbd5e1', fontSize: '0.75rem', textAlign: 'right' }}>Collected Amount</th>
+                <th style={{ padding: '8px', border: '1px solid #cbd5e1', fontSize: '0.75rem', textAlign: 'right' }}>Completion Rate</th>
+              </tr>
+            </thead>
+            <tbody>
+              {funds.length > 0 ? (
+                funds.map(f => {
+                  const { collected, targetTotal, percentage } = getFundStats(f._id, f.targetAmount);
+                  return (
+                    <tr key={f._id}>
+                      <td style={{ padding: '8px', border: '1px solid #cbd5e1', fontSize: '0.75rem' }}><strong>{f.name}</strong></td>
+                      <td style={{ padding: '8px', border: '1px solid #cbd5e1', fontSize: '0.75rem', textTransform: 'uppercase' }}>{f.fundType}</td>
+                      <td style={{ padding: '8px', border: '1px solid #cbd5e1', fontSize: '0.75rem', textAlign: 'right' }}>₹{f.targetAmount.toLocaleString()}</td>
+                      <td style={{ padding: '8px', border: '1px solid #cbd5e1', fontSize: '0.75rem', textAlign: 'right' }}>₹{targetTotal.toLocaleString()}</td>
+                      <td style={{ padding: '8px', border: '1px solid #cbd5e1', fontSize: '0.75rem', textAlign: 'right', fontWeight: 'bold' }}>₹{collected.toLocaleString()}</td>
+                      <td style={{ padding: '8px', border: '1px solid #cbd5e1', fontSize: '0.75rem', textAlign: 'right', fontWeight: 'bold', color: percentage >= 100 ? '#10b981' : '#ea580c' }}>{percentage}%</td>
+                    </tr>
+                  );
+                })
+              ) : (
+                <tr>
+                  <td colSpan="6" style={{ padding: '10px', border: '1px solid #cbd5e1', fontSize: '0.8rem', textAlign: 'center' }}>No active funds found.</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Section 5: Recent Transactions Statement */}
+        <div style={{ marginBottom: '25px' }}>
+          <h3 style={{ fontSize: '1.1rem', fontWeight: '800', borderBottom: '1px solid #cbd5e1', paddingBottom: '6px', marginBottom: '12px', textTransform: 'uppercase' }}>
+            5. Recent Collections Summary (Income)
+          </h3>
+          <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '25px' }}>
+            <thead>
+              <tr style={{ background: '#f1f5f9', textAlign: 'left' }}>
+                <th style={{ padding: '8px', border: '1px solid #cbd5e1', fontSize: '0.75rem' }}>Receipt Number</th>
+                <th style={{ padding: '8px', border: '1px solid #cbd5e1', fontSize: '0.75rem' }}>Member / Family Name</th>
+                <th style={{ padding: '8px', border: '1px solid #cbd5e1', fontSize: '0.75rem' }}>Date Logged</th>
+                <th style={{ padding: '8px', border: '1px solid #cbd5e1', fontSize: '0.75rem', textAlign: 'right' }}>Amount Paid</th>
+              </tr>
+            </thead>
+            <tbody>
+              {recentPayments.slice(0, 10).map(p => (
+                <tr key={p._id}>
+                  <td style={{ padding: '8px', border: '1px solid #cbd5e1', fontSize: '0.75rem' }}>{p.receiptNumber}</td>
+                  <td style={{ padding: '8px', border: '1px solid #cbd5e1', fontSize: '0.75rem' }}><strong>{p.memberId?.name || 'N/A'}</strong></td>
+                  <td style={{ padding: '8px', border: '1px solid #cbd5e1', fontSize: '0.75rem' }}>{new Date(p.paymentDate).toLocaleDateString()}</td>
+                  <td style={{ padding: '8px', border: '1px solid #cbd5e1', fontSize: '0.75rem', textAlign: 'right', fontWeight: 'bold', color: '#0d9488' }}>+₹{p.totalAmountPaid.toLocaleString()}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+
+          <h3 style={{ fontSize: '1.1rem', fontWeight: '800', borderBottom: '1px solid #cbd5e1', paddingBottom: '6px', marginBottom: '12px', textTransform: 'uppercase' }}>
+            6. Recent Expenditures Summary (Expenses)
+          </h3>
+          <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '15px' }}>
+            <thead>
+              <tr style={{ background: '#f1f5f9', textAlign: 'left' }}>
+                <th style={{ padding: '8px', border: '1px solid #cbd5e1', fontSize: '0.75rem' }}>Date Paid</th>
+                <th style={{ padding: '8px', border: '1px solid #cbd5e1', fontSize: '0.75rem' }}>Expense Title</th>
+                <th style={{ padding: '8px', border: '1px solid #cbd5e1', fontSize: '0.75rem' }}>Category</th>
+                <th style={{ padding: '8px', border: '1px solid #cbd5e1', fontSize: '0.75rem', textAlign: 'right' }}>Amount Outflow</th>
+              </tr>
+            </thead>
+            <tbody>
+              {recentExpenses.slice(0, 10).map(e => (
+                <tr key={e._id}>
+                  <td style={{ padding: '8px', border: '1px solid #cbd5e1', fontSize: '0.75rem' }}>{new Date(e.date).toLocaleDateString()}</td>
+                  <td style={{ padding: '8px', border: '1px solid #cbd5e1', fontSize: '0.75rem' }}><strong>{e.title}</strong></td>
+                  <td style={{ padding: '8px', border: '1px solid #cbd5e1', fontSize: '0.75rem', textTransform: 'capitalize' }}>{e.category}</td>
+                  <td style={{ padding: '8px', border: '1px solid #cbd5e1', fontSize: '0.75rem', textAlign: 'right', fontWeight: 'bold', color: '#e11d48' }}>-₹{e.amount.toLocaleString()}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Footer Signature */}
+        <div style={{ marginTop: '50px', display: 'flex', justifyContent: 'space-between', borderTop: '1px solid #cbd5e1', paddingTop: '15px' }}>
+          <div>
+            <p style={{ margin: 0, fontSize: '0.8rem', color: '#64748b' }}>Certified by Denalai Village Council President</p>
+            <div style={{ height: '40px' }}></div>
+            <strong style={{ fontSize: '0.85rem' }}>_____________________________</strong>
+          </div>
+          <div style={{ textAlign: 'right' }}>
+            <p style={{ margin: 0, fontSize: '0.8rem', color: '#64748b' }}>Verified by Chief Treasury Officer</p>
+            <div style={{ height: '40px' }}></div>
+            <strong style={{ fontSize: '0.85rem' }}>_____________________________</strong>
+          </div>
+        </div>
+      </div>
     </div>
   );
 };

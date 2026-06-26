@@ -349,13 +349,18 @@ const DetailedReports = () => {
 
   const groupedFamilies = Object.values(familyDuesMap);
 
-  // Paid Families
+  // Paid Families (fully paid)
   const auditPaidFamilies = groupedFamilies.filter(f => f.unpaid <= 0 && f.expected > 0);
-  // Unpaid Families (unpaid balance > 0)
-  const auditUnpaidFamilies = groupedFamilies.filter(f => f.unpaid > 0);
+  // Partially Paid Families (paid > 0, unpaid > 0)
+  const auditPartialFamilies = groupedFamilies.filter(f => f.paid > 0 && f.unpaid > 0);
+  // Unpaid Families (fully unpaid, paid === 0, unpaid > 0)
+  const auditUnpaidFamilies = groupedFamilies.filter(f => f.paid === 0 && f.unpaid > 0);
+
+  // All families with outstanding balance (for top outstanding dues list)
+  const allUnpaidFamilies = groupedFamilies.filter(f => f.unpaid > 0);
 
   // Top 5 Highest Due Families/Members sorted descending by their pending dues
-  const auditTopDueFamilies = [...auditUnpaidFamilies]
+  const auditTopDueFamilies = [...allUnpaidFamilies]
     .sort((a, b) => b.unpaid - a.unpaid)
     .slice(0, 5);
 
@@ -913,6 +918,13 @@ const DetailedReports = () => {
                             ❌ Not Paid ({auditUnpaidFamilies.length})
                           </button>
                           <button 
+                            className={`shortcut-btn glass-panel ${familyViewTab === 'partial' ? 'active' : ''}`}
+                            onClick={() => setFamilyViewTab('partial')}
+                            style={{ padding: '4px 10px', fontSize: '0.75rem', fontWeight: '700', borderRadius: '6px' }}
+                          >
+                            ⚠️ Partial ({auditPartialFamilies.length})
+                          </button>
+                          <button 
                             className={`shortcut-btn glass-panel ${familyViewTab === 'paid' ? 'active' : ''}`}
                             onClick={() => setFamilyViewTab('paid')}
                             style={{ padding: '4px 10px', fontSize: '0.75rem', fontWeight: '700', borderRadius: '6px' }}
@@ -930,7 +942,9 @@ const DetailedReports = () => {
                                 <th>Family ID</th>
                                 <th>Name (Head)</th>
                                 <th style={{ textAlign: 'right' }}>Expected</th>
-                                <th style={{ textAlign: 'right' }}>Unpaid Dues</th>
+                                <th style={{ textAlign: 'right' }}>Paid</th>
+                                <th style={{ textAlign: 'right' }}>Unpaid</th>
+                                <th style={{ textAlign: 'center' }}>Status</th>
                               </tr>
                             </thead>
                             <tbody>
@@ -940,19 +954,102 @@ const DetailedReports = () => {
                                     <td><strong>{d.familyId || 'N/A'}</strong></td>
                                     <td>{d.name || 'N/A'}</td>
                                     <td style={{ textAlign: 'right' }}>₹{d.expected.toLocaleString()}</td>
+                                    <td className="amount-cell text-teal" style={{ textAlign: 'right', fontWeight: '700' }}>
+                                      ₹{d.paid.toLocaleString()}
+                                    </td>
                                     <td className="amount-cell text-pink" style={{ textAlign: 'right', fontWeight: '700' }}>
                                       ₹{d.unpaid.toLocaleString()}
+                                    </td>
+                                    <td style={{ textAlign: 'center' }}>
+                                      <span className="fund-name-tag" style={{ background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', fontWeight: '800' }}>
+                                        UNPAID
+                                      </span>
                                     </td>
                                   </tr>
                                 ))
                               ) : (
                                 <tr>
-                                  <td colSpan="4" className="text-center py-6 text-muted">
-                                    All families have fully paid for this filter selection!
+                                  <td colSpan="6" className="text-center py-6 text-muted">
+                                    All families have paid something for this selection!
                                   </td>
                                 </tr>
                               )}
                             </tbody>
+                            {auditUnpaidFamilies.length > 0 && (
+                              <tfoot>
+                                <tr style={{ background: 'rgba(255, 255, 255, 0.7)', fontWeight: 'bold', borderTop: '2px solid rgba(0, 0, 0, 0.1)' }}>
+                                  <td colSpan="2" style={{ textAlign: 'right', padding: '16px 20px', fontWeight: 'bold' }}>Total:</td>
+                                  <td style={{ textAlign: 'right', padding: '16px 20px', fontWeight: 'bold' }}>
+                                    ₹{auditUnpaidFamilies.reduce((sum, d) => sum + d.expected, 0).toLocaleString()}
+                                  </td>
+                                  <td className="amount-cell text-teal" style={{ textAlign: 'right', padding: '16px 20px', fontWeight: '800' }}>
+                                    ₹{auditUnpaidFamilies.reduce((sum, d) => sum + d.paid, 0).toLocaleString()}
+                                  </td>
+                                  <td className="amount-cell text-pink" style={{ textAlign: 'right', padding: '16px 20px', fontWeight: '800' }}>
+                                    ₹{auditUnpaidFamilies.reduce((sum, d) => sum + d.unpaid, 0).toLocaleString()}
+                                  </td>
+                                  <td></td>
+                                </tr>
+                              </tfoot>
+                            )}
+                          </table>
+                        ) : familyViewTab === 'partial' ? (
+                          <table className="report-table">
+                            <thead>
+                              <tr>
+                                <th>Family ID</th>
+                                <th>Name (Head)</th>
+                                <th style={{ textAlign: 'right' }}>Expected</th>
+                                <th style={{ textAlign: 'right' }}>Paid</th>
+                                <th style={{ textAlign: 'right' }}>Unpaid</th>
+                                <th style={{ textAlign: 'center' }}>Status</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {auditPartialFamilies.length > 0 ? (
+                                auditPartialFamilies.map((d, idx) => (
+                                  <tr key={idx} className={idx % 2 === 0 ? 'row-even' : 'row-odd'}>
+                                    <td><strong>{d.familyId || 'N/A'}</strong></td>
+                                    <td>{d.name || 'N/A'}</td>
+                                    <td style={{ textAlign: 'right' }}>₹{d.expected.toLocaleString()}</td>
+                                    <td className="amount-cell text-teal" style={{ textAlign: 'right', fontWeight: '700' }}>
+                                      ₹{d.paid.toLocaleString()}
+                                    </td>
+                                    <td className="amount-cell text-pink" style={{ textAlign: 'right', fontWeight: '700' }}>
+                                      ₹{d.unpaid.toLocaleString()}
+                                    </td>
+                                    <td style={{ textAlign: 'center' }}>
+                                      <span className="fund-name-tag" style={{ background: 'rgba(245, 158, 11, 0.1)', color: '#d97706', fontWeight: '800' }}>
+                                        PARTIAL
+                                      </span>
+                                    </td>
+                                  </tr>
+                                ))
+                              ) : (
+                                <tr>
+                                  <td colSpan="6" className="text-center py-6 text-muted">
+                                    No families are partially paid for this selection.
+                                  </td>
+                                </tr>
+                              )}
+                            </tbody>
+                            {auditPartialFamilies.length > 0 && (
+                              <tfoot>
+                                <tr style={{ background: 'rgba(255, 255, 255, 0.7)', fontWeight: 'bold', borderTop: '2px solid rgba(0, 0, 0, 0.1)' }}>
+                                  <td colSpan="2" style={{ textAlign: 'right', padding: '16px 20px', fontWeight: 'bold' }}>Total:</td>
+                                  <td style={{ textAlign: 'right', padding: '16px 20px', fontWeight: 'bold' }}>
+                                    ₹{auditPartialFamilies.reduce((sum, d) => sum + d.expected, 0).toLocaleString()}
+                                  </td>
+                                  <td className="amount-cell text-teal" style={{ textAlign: 'right', padding: '16px 20px', fontWeight: '800' }}>
+                                    ₹{auditPartialFamilies.reduce((sum, d) => sum + d.paid, 0).toLocaleString()}
+                                  </td>
+                                  <td className="amount-cell text-pink" style={{ textAlign: 'right', padding: '16px 20px', fontWeight: '800' }}>
+                                    ₹{auditPartialFamilies.reduce((sum, d) => sum + d.unpaid, 0).toLocaleString()}
+                                  </td>
+                                  <td></td>
+                                </tr>
+                              </tfoot>
+                            )}
                           </table>
                         ) : (
                           <table className="report-table">
@@ -960,8 +1057,10 @@ const DetailedReports = () => {
                               <tr>
                                 <th>Family ID</th>
                                 <th>Name (Head)</th>
-                                <th style={{ textAlign: 'right' }}>Amount Paid</th>
-                                <th>Status</th>
+                                <th style={{ textAlign: 'right' }}>Expected</th>
+                                <th style={{ textAlign: 'right' }}>Paid</th>
+                                <th style={{ textAlign: 'right' }}>Unpaid</th>
+                                <th style={{ textAlign: 'center' }}>Status</th>
                               </tr>
                             </thead>
                             <tbody>
@@ -970,10 +1069,14 @@ const DetailedReports = () => {
                                   <tr key={idx} className={idx % 2 === 0 ? 'row-even' : 'row-odd'}>
                                     <td><strong>{d.familyId || 'N/A'}</strong></td>
                                     <td>{d.name || 'N/A'}</td>
+                                    <td style={{ textAlign: 'right' }}>₹{d.expected.toLocaleString()}</td>
                                     <td className="amount-cell text-teal" style={{ textAlign: 'right', fontWeight: '700' }}>
                                       ₹{d.paid.toLocaleString()}
                                     </td>
-                                    <td>
+                                    <td className="amount-cell text-pink" style={{ textAlign: 'right', fontWeight: '700' }}>
+                                      ₹{d.unpaid.toLocaleString()}
+                                    </td>
+                                    <td style={{ textAlign: 'center' }}>
                                       <span className="fund-name-tag" style={{ background: 'rgba(20, 184, 166, 0.1)', color: '#14b8a6', fontWeight: '800' }}>
                                         PAID
                                       </span>
@@ -982,14 +1085,32 @@ const DetailedReports = () => {
                                 ))
                               ) : (
                                 <tr>
-                                  <td colSpan="4" className="text-center py-6 text-muted">
-                                    No families have paid yet for this filter selection!
+                                  <td colSpan="6" className="text-center py-6 text-muted">
+                                    No families have fully paid yet for this selection!
                                   </td>
                                 </tr>
                               )}
                             </tbody>
+                            {auditPaidFamilies.length > 0 && (
+                              <tfoot>
+                                <tr style={{ background: 'rgba(255, 255, 255, 0.7)', fontWeight: 'bold', borderTop: '2px solid rgba(0, 0, 0, 0.1)' }}>
+                                  <td colSpan="2" style={{ textAlign: 'right', padding: '16px 20px', fontWeight: 'bold' }}>Total:</td>
+                                  <td style={{ textAlign: 'right', padding: '16px 20px', fontWeight: 'bold' }}>
+                                    ₹{auditPaidFamilies.reduce((sum, d) => sum + d.expected, 0).toLocaleString()}
+                                  </td>
+                                  <td className="amount-cell text-teal" style={{ textAlign: 'right', padding: '16px 20px', fontWeight: '800' }}>
+                                    ₹{auditPaidFamilies.reduce((sum, d) => sum + d.paid, 0).toLocaleString()}
+                                  </td>
+                                  <td className="amount-cell text-pink" style={{ textAlign: 'right', padding: '16px 20px', fontWeight: '800' }}>
+                                    ₹{auditPaidFamilies.reduce((sum, d) => sum + d.unpaid, 0).toLocaleString()}
+                                  </td>
+                                  <td></td>
+                                </tr>
+                              </tfoot>
+                            )}
                           </table>
-                        )}
+                        )
+                       }
                       </div>
                     </div>
 

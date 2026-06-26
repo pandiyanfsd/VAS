@@ -952,3 +952,42 @@
   cursor: pointer;
 }
 
+/* ==========================================
+   6. Overview Consolidated Report Print Styles
+   ========================================== */
+
+/* Screen view: hide print-only consolidated report */
+@media screen {
+  .print-only-consolidated-report {
+    display: none !important;
+  }
+}
+
+/* Print view: hide regular dashboard elements and show report */
+@media print {
+  /* Hide dashboard navigation and page controls */
+  .sidebar,
+  .mobile-header,
+  .content-header,
+  .sidebar-overlay,
+  .overview-header-print-hide,
+  .glass-panel:not(.print-panel) {
+    display: none !important;
+  }
+
+  /* Hide regular elements under overview-wrapper during print */
+  .overview-wrapper > div:not(.print-only-consolidated-report) {
+    display: none !important;
+  }
+
+  /* Display the consolidated report on a clean page */
+  .print-only-consolidated-report {
+    display: block !important;
+    background: white !important;
+    color: black !important;
+    padding: 30px !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+}
+
