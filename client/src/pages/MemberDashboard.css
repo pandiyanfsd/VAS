@@ -562,3 +562,9 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* Tamil Font Overrides */
+.lang-ta, .lang-ta * {
+  font-family: 'Mukta Malar', 'Outfit', sans-serif !important;
+}
+

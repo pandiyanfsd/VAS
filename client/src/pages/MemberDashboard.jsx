@@ -25,12 +25,106 @@ import {
   Lock
 } from 'lucide-react';
 import './MemberDashboard.css';
+import { translations } from '../utils/translations';
 
 const MemberDashboard = () => {
   const navigate = useNavigate();
+  const [language, setLanguage] = useState(localStorage.getItem('language') || 'en');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('overview'); // overview, dues, receipts, card, centralFinancials
   const [member, setMember] = useState(null);
+
+  const t = (key) => {
+    if (!key) return '';
+    const cleanKey = key.toString().trim();
+    
+    // Check direct translations dictionary
+    if (translations[language]?.[cleanKey]) {
+      return translations[language][cleanKey];
+    }
+    
+    // Handle dynamic database values when language is Tamil
+    if (language === 'ta') {
+      const upperKey = cleanKey.toUpperCase();
+      const lowerKey = cleanKey.toLowerCase();
+      
+      // 1. Member and Family Names from Database
+      const nameTranslations = {
+        'pandiyan': 'பாண்டியன்',
+        'vinesh': 'வினேஷ்',
+        'vinesh p': 'வினேஷ் பி',
+        'parvathii': 'பார்வதி',
+        'durga': 'துர்கா',
+        'ushaa': 'உஷா',
+        'ganeshan': 'கணேசன்',
+        'test1': 'சோதனை 1',
+        'test2': 'சோதனை 2',
+        'pandiyanganeshan': 'பாண்டியன் கணேசன்',
+        'sample': 'மாதிரி',
+        'sample name': 'மாதிரி பெயர்'
+      };
+      if (nameTranslations[lowerKey]) {
+        return nameTranslations[lowerKey];
+      }
+      
+      // 2. Relations
+      const relationTranslations = {
+        'husband': 'கணவர்',
+        'wife': 'மனைவி',
+        'son': 'மகன்',
+        'daughter': 'மகள்',
+        'father': 'தந்தை',
+        'mother': 'தாய்',
+        'brother': 'சகோதரன்',
+        'sister': 'சகோதரி',
+        'grandson': 'பேரன்',
+        'granddaughter': 'பேத்தி',
+        'other': 'இதர',
+        'member': 'உறுப்பினர்'
+      };
+      if (relationTranslations[lowerKey]) {
+        return relationTranslations[lowerKey];
+      }
+      
+      // 3. Payment Statuses
+      const statusTranslations = {
+        'paid': 'முழுமையாக செலுத்தப்பட்டது',
+        'fully paid': 'முழுமையாக செலுத்தப்பட்டது',
+        'fullypaid': 'முழுமையாக செலுத்தப்பட்டது',
+        'partially paid': 'பகுதி செலுத்தப்பட்டது',
+        'partiallypaid': 'பகுதி செலுத்தப்பட்டது',
+        'partial': 'பகுதி செலுத்தப்பட்டது',
+        'unpaid': 'செலுத்தப்படாதது',
+        'pending': 'நிலுவையில் உள்ளது'
+      };
+      if (statusTranslations[lowerKey]) {
+        return statusTranslations[lowerKey];
+      }
+
+      // 4. Payment Modes / Channels
+      const modeTranslations = {
+        'cash': 'பணம்',
+        'upi': 'UPI',
+        'card': 'அட்டை'
+      };
+      if (modeTranslations[lowerKey]) {
+        return modeTranslations[lowerKey];
+      }
+
+      // 5. Fund Names
+      if (cleanKey === '2025-26 YEARLY PAYMENT') {
+        return '2025-26 வருடாந்திர கட்டணம்';
+      }
+      if (cleanKey.includes('YEARLY PAYMENT')) {
+        return cleanKey.replace('YEARLY PAYMENT', 'வருடாந்திர கட்டணம்');
+      }
+      if (cleanKey.includes('MONTHLY PAYMENT')) {
+        return cleanKey.replace('MONTHLY PAYMENT', 'மாதாந்திர கட்டணம்');
+      }
+    }
+    
+    return translations['en']?.[cleanKey] || cleanKey;
+  };
   
   // Password change states
   const [currentPassword, setCurrentPassword] = useState('');
@@ -361,10 +455,30 @@ const MemberDashboard = () => {
   };
 
   return (
-    <div className="member-layout">
+    <div className={`member-layout ${language === 'ta' ? 'lang-ta' : ''}`}>
       {/* Mobile Top Header */}
       <div className="mobile-header">
-        <h2>Denalai Village Portal</h2>
+        <h2 style={{ marginRight: 'auto' }}>{t('villagePortal')}</h2>
+        <select 
+          value={language} 
+          onChange={(e) => {
+            const newLang = e.target.value;
+            setLanguage(newLang);
+            localStorage.setItem('language', newLang);
+          }}
+          style={{
+            padding: '4px 6px',
+            borderRadius: '6px',
+            border: '1px solid var(--panel-border)',
+            fontSize: '0.75rem',
+            fontWeight: '700',
+            cursor: 'pointer',
+            background: 'rgba(255, 255, 255, 0.8)'
+          }}
+        >
+          <option value="en">EN</option>
+          <option value="ta">தமிழ்</option>
+        </select>
         <button className="menu-btn" onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}>
           {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
         </button>
@@ -372,8 +486,28 @@ const MemberDashboard = () => {
 
       {/* Sidebar Navigation */}
       <aside className={`sidebar glass-panel ${isMobileMenuOpen ? 'open' : ''}`}>
-        <div className="sidebar-header">
-          <h2>Denalai Village</h2>
+        <div className="sidebar-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px' }}>
+          <h2 style={{ fontSize: '1.4rem' }}>{t('villageName')}</h2>
+          <select 
+            value={language} 
+            onChange={(e) => {
+              const newLang = e.target.value;
+              setLanguage(newLang);
+              localStorage.setItem('language', newLang);
+            }}
+            style={{
+              padding: '4px 8px',
+              borderRadius: '8px',
+              border: '1px solid var(--panel-border)',
+              fontSize: '0.8rem',
+              fontWeight: '700',
+              cursor: 'pointer',
+              background: 'rgba(255, 255, 255, 0.8)'
+            }}
+          >
+            <option value="en">English</option>
+            <option value="ta">தமிழ்</option>
+          </select>
         </div>
         
         <nav className="sidebar-nav">
@@ -382,7 +516,7 @@ const MemberDashboard = () => {
             className={`nav-item ${activeTab === 'overview' ? 'active' : ''}`}
           >
             <User size={20} />
-            <span>Profile & Overview</span>
+            <span>{t('profileOverview')}</span>
           </button>
 
           <button 
@@ -390,7 +524,7 @@ const MemberDashboard = () => {
             className={`nav-item ${activeTab === 'dues' ? 'active' : ''}`}
           >
             <Clock size={20} />
-            <span>My Family Dues</span>
+            <span>{t('myFamilyDues')}</span>
           </button>
 
           <button 
@@ -398,7 +532,7 @@ const MemberDashboard = () => {
             className={`nav-item ${activeTab === 'receipts' ? 'active' : ''}`}
           >
             <Receipt size={20} />
-            <span>My Receipts Log</span>
+            <span>{t('myReceiptsLog')}</span>
           </button>
 
           <button 
@@ -406,7 +540,7 @@ const MemberDashboard = () => {
             className={`nav-item ${activeTab === 'card' ? 'active' : ''}`}
           >
             <QrCode size={20} />
-            <span>Membership Card</span>
+            <span>{t('membershipCard')}</span>
           </button>
 
           <button 
@@ -414,7 +548,7 @@ const MemberDashboard = () => {
             className={`nav-item ${activeTab === 'password' ? 'active' : ''}`}
           >
             <Lock size={20} />
-            <span>Update Password</span>
+            <span>{t('updatePassword')}</span>
           </button>
 
           {memberFinancialsVisible && (
@@ -424,7 +558,7 @@ const MemberDashboard = () => {
               style={{ borderTop: '1px solid rgba(79,70,229,0.15)', marginTop: '8px', paddingTop: '16px' }}
             >
               <Coins size={20} color="var(--primary-color)" />
-              <span>Village central Treasury</span>
+              <span>{t('villageCentralTreasury')}</span>
             </button>
           )}
         </nav>
@@ -432,7 +566,7 @@ const MemberDashboard = () => {
         <div className="sidebar-footer">
           <button className="nav-item logout-btn" onClick={handleLogout}>
             <LogOut size={20} />
-            <span>Sign Out</span>
+            <span>{t('signOut')}</span>
           </button>
         </div>
       </aside>
@@ -441,16 +575,16 @@ const MemberDashboard = () => {
       <main className="main-content">
         <header className="content-header">
           <h1>
-            {activeTab === 'overview' && 'My Profile & Household'}
-            {activeTab === 'dues' && 'My Family Dues Ledger'}
-            {activeTab === 'receipts' && 'My Payment Receipts History'}
-            {activeTab === 'card' && 'My Digital Membership Card'}
-            {activeTab === 'password' && 'Account Security & Password'}
-            {activeTab === 'centralFinancials' && 'Village Council Central Treasury'}
+            {activeTab === 'overview' && t('myProfileHousehold')}
+            {activeTab === 'dues' && t('myFamilyDuesLedger')}
+            {activeTab === 'receipts' && t('myPaymentReceiptsHistory')}
+            {activeTab === 'card' && t('myDigitalMembershipCard')}
+            {activeTab === 'password' && t('accountSecurityPassword')}
+            {activeTab === 'centralFinancials' && t('villageCouncilCentralTreasury')}
           </h1>
           <div className="user-profile">
             <div className="avatar">M</div>
-            <span>{member?.name || 'Villager Head'}</span>
+            <span>{member?.name ? t(member.name) : t('villagerHead')}</span>
           </div>
         </header>
 
@@ -474,26 +608,26 @@ const MemberDashboard = () => {
                 <div className="demographic-banner glass-panel p-6 mb-8">
                   <div className="demo-card">
                     <span className="demo-icon"><Coins size={20} color="#e879f9" /></span>
-                    <span className="demo-label">Total Allotted Dues</span>
+                    <span className="demo-label">{t('totalAllottedDues')}</span>
                     <strong className="demo-value">₹{totalAllotted.toLocaleString()}</strong>
-                    <span className="demo-sublabel">Central contributions expected</span>
+                    <span className="demo-sublabel">{t('centralContributionsExpected')}</span>
                   </div>
                   
                   <div className="demo-card">
                     <span className="demo-icon"><CheckCircle2 size={20} color="#34d399" /></span>
-                    <span className="demo-label">Amount Cleared</span>
+                    <span className="demo-label">{t('amountCleared')}</span>
                     <strong className="demo-value" style={{ color: '#34d399' }}>₹{totalPaid.toLocaleString()}</strong>
-                    <span className="demo-sublabel">Receipted funds settled</span>
+                    <span className="demo-sublabel">{t('receiptedFundsSettled')}</span>
                   </div>
 
                   <div className="demo-card">
                     <span className="demo-icon"><Clock size={20} color={totalOutstanding > 0 ? '#f87171' : '#34d399'} /></span>
-                    <span className="demo-label">Outstanding Unpaid</span>
+                    <span className="demo-label">{t('outstandingUnpaid')}</span>
                     <strong className="demo-value" style={{ color: totalOutstanding > 0 ? '#f87171' : '#34d399' }}>
                       ₹{totalOutstanding.toLocaleString()}
                     </strong>
                     <span className="demo-sublabel">
-                      {totalOutstanding > 0 ? '⚠️ Dues currently pending' : '✅ Clear of all dues!'}
+                      {totalOutstanding > 0 ? t('duesCurrentlyPending') : t('clearOfAllDues')}
                     </span>
                   </div>
                 </div>
@@ -505,8 +639,8 @@ const MemberDashboard = () => {
                       <div className="profile-header" style={{ marginBottom: 0 }}>
                         <div className="profile-avatar">🏡</div>
                         <div className="profile-title">
-                          <h3>{member?.name}</h3>
-                          <span>Household Head Profile</span>
+                          <h3>{t(member?.name)}</h3>
+                          <span>{t('householdHeadProfile')}</span>
                         </div>
                       </div>
                       <button 
@@ -525,33 +659,35 @@ const MemberDashboard = () => {
                           gap: '4px'
                         }}
                       >
-                        <Edit size={14} /> Edit Profile
+                        <Edit size={14} /> {t('editProfile')}
                       </button>
                     </div>
 
                     <div className="info-list">
                       <div className="info-item">
-                        <span className="info-label">Household Head Name</span>
-                        <span className="info-value">{member?.name || 'N/A'}</span>
+                        <span className="info-label">{t('householdHeadName')}</span>
+                        <span className="info-value">{t(member?.name) || 'N/A'}</span>
                       </div>
                       <div className="info-item">
-                        <span className="info-label">Age</span>
+                        <span className="info-label">{t('age')}</span>
                         <span className="info-value">{member?.age || 'N/A'}</span>
                       </div>
                       <div className="info-item">
-                        <span className="info-label">Gender</span>
-                        <span className="info-value" style={{ textTransform: 'capitalize' }}>{member?.gender || 'N/A'}</span>
+                        <span className="info-label">{t('gender')}</span>
+                        <span className="info-value" style={{ textTransform: 'capitalize' }}>
+                          {member?.gender === 'male' ? t('male') : member?.gender === 'female' ? t('female') : member?.gender || 'N/A'}
+                        </span>
                       </div>
                       <div className="info-item">
-                        <span className="info-label">Unique Member ID</span>
+                        <span className="info-label">{t('uniqueMemberId')}</span>
                         <span className="info-value" style={{ color: 'var(--primary-color)' }}>{member?.memberId || 'N/A'}</span>
                       </div>
                       <div className="info-item">
-                        <span className="info-label">Family ID / Code</span>
+                        <span className="info-label">{t('familyIdCode')}</span>
                         <span className="info-value">{member?.familyId || 'N/A'}</span>
                       </div>
                       <div className="info-item">
-                        <span className="info-label">Mobile Contact</span>
+                        <span className="info-label">{t('mobileContact')}</span>
                         <span className="info-value">{member?.phone || 'N/A'}</span>
                       </div>
                     </div>
@@ -561,7 +697,7 @@ const MemberDashboard = () => {
                 <div className="family-members-card glass-panel p-8">
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
                     <h3 style={{ fontSize: '1.2rem', fontWeight: '800', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <Users size={20} color="var(--primary-color)" /> Family Members
+                      <Users size={20} color="var(--primary-color)" /> {t('familyMembers')}
                     </h3>
                     <button 
                       onClick={openAddSubModal}
@@ -579,11 +715,11 @@ const MemberDashboard = () => {
                         gap: '4px'
                       }}
                     >
-                      <Plus size={14} /> Add
+                      <Plus size={14} /> {t('add')}
                     </button>
                   </div>
                   <p style={{ color: 'var(--text-light)', fontSize: '0.85rem', fontWeight: '600', margin: '0 0 20px 0' }}>
-                    Sub-members registered under this household head.
+                    {t('subMembersDescription')}
                   </p>
 
                   <div className="family-members-list">
@@ -593,9 +729,9 @@ const MemberDashboard = () => {
                           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                             <div className="family-member-avatar">👤</div>
                             <div>
-                              <strong style={{ display: 'block', fontSize: '0.95rem' }}>{sub.name}</strong>
+                              <strong style={{ display: 'block', fontSize: '0.95rem' }}>{t(sub.name)}</strong>
                               <span style={{ fontSize: '0.75rem', color: 'var(--text-light)', fontWeight: '700' }}>
-                                {sub.relation || sub.relationship || 'Member'} • {sub.age} yrs • {sub.gender}
+                                {t(sub.relation || sub.relationship || 'Member')} • {sub.age} {t('yrs')} • {sub.gender === 'male' ? t('male') : sub.gender === 'female' ? t('female') : sub.gender || 'N/A'}
                               </span>
                             </div>
                           </div>
@@ -612,7 +748,7 @@ const MemberDashboard = () => {
                       ))
                     ) : (
                       <p style={{ textAlign: 'center', color: 'var(--text-light)', padding: '20px 0', fontStyle: 'italic', fontSize: '0.9rem' }}>
-                        No other family members recorded.
+                        {t('noOtherFamilyMembers')}
                       </p>
                     )}
                   </div>
@@ -626,7 +762,7 @@ const MemberDashboard = () => {
               <div className="glass-panel p-6" style={{ background: 'white', borderRadius: '24px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px', marginBottom: '20px' }}>
                   <h3 style={{ fontSize: '1.25rem', fontWeight: '900', color: '#0f172a', margin: 0 }}>
-                    Central Dues & Fund Subscriptions
+                    {t('centralDuesSubscriptions')}
                   </h3>
                   
                   {/* Dynamic Filters bar */}
@@ -635,7 +771,7 @@ const MemberDashboard = () => {
                       <Search size={14} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: '#64748b' }} />
                       <input 
                         type="text"
-                        placeholder="Search fund name..."
+                        placeholder={t('searchFundNamePlaceholder')}
                         value={searchFundName}
                         onChange={(e) => setSearchFundName(e.target.value)}
                         style={{
@@ -662,10 +798,10 @@ const MemberDashboard = () => {
                         cursor: 'pointer'
                       }}
                     >
-                      <option value="all">All Fund Types</option>
-                      <option value="monthly">Monthly</option>
-                      <option value="yearly">Yearly</option>
-                      <option value="custom">Custom / Other</option>
+                      <option value="all">{t('allFundTypes')}</option>
+                      <option value="monthly">{t('monthly')}</option>
+                      <option value="yearly">{t('yearly')}</option>
+                      <option value="custom">{t('customOther')}</option>
                     </select>
 
                     <select
@@ -681,10 +817,10 @@ const MemberDashboard = () => {
                         cursor: 'pointer'
                       }}
                     >
-                      <option value="all">All Statuses</option>
-                      <option value="paid">Fully Paid</option>
-                      <option value="partial">Partially Paid</option>
-                      <option value="unpaid">Unpaid</option>
+                      <option value="all">{t('allStatuses')}</option>
+                      <option value="paid">{t('fullyPaid')}</option>
+                      <option value="partial">{t('partiallyPaid')}</option>
+                      <option value="unpaid">{t('unpaid')}</option>
                     </select>
                   </div>
                 </div>
@@ -693,13 +829,13 @@ const MemberDashboard = () => {
                   <table className="report-table">
                     <thead>
                       <tr>
-                        <th>Fund / Contribution Name</th>
-                        <th>Type</th>
-                        <th>Target Due</th>
-                        <th>Amount Settled</th>
-                        <th>Remaining Balance</th>
-                        <th style={{ textAlign: 'center' }}>Due Date</th>
-                        <th style={{ textAlign: 'center' }}>Payment Status</th>
+                        <th>{t('fundContributionName')}</th>
+                        <th>{t('type')}</th>
+                        <th>{t('targetDue')}</th>
+                        <th>{t('amountSettled')}</th>
+                        <th>{t('remainingBalance')}</th>
+                        <th style={{ textAlign: 'center' }}>{t('dueDate')}</th>
+                        <th style={{ textAlign: 'center' }}>{t('paymentStatus')}</th>
                       </tr>
                     </thead>
                     <tbody style={{ fontSize: '0.9rem', fontWeight: '600' }}>
@@ -717,13 +853,13 @@ const MemberDashboard = () => {
                                 {cashierName && (
                                   <div style={{ fontSize: '0.74rem', color: '#4f46e5', fontWeight: '700', marginTop: '3px', display: 'flex', alignItems: 'center', gap: '3px' }}>
                                     <span style={{ display: 'inline-block', width: '5px', height: '5px', borderRadius: '50%', background: '#4f46e5' }}></span>
-                                    Counter Cashier: {cashierName}
+                                    {t('counterCashier')}: {cashierName}
                                   </div>
                                 )}
                               </td>
                               <td>
                                 <span style={{ background: 'rgba(79, 70, 229, 0.08)', color: 'var(--primary-color)', padding: '4px 10px', borderRadius: '6px', fontSize: '0.78rem', fontWeight: '800', textTransform: 'uppercase' }}>
-                                  {d.fundId?.fundType || 'General'}
+                                  {d.fundId?.fundType === 'Monthly' ? t('monthly') : d.fundId?.fundType === 'Yearly' ? t('yearly') : d.fundId?.fundType || 'General'}
                                 </span>
                               </td>
                               <td><strong>₹{(d.totalDueAmount || 0).toLocaleString()}</strong></td>
@@ -734,12 +870,12 @@ const MemberDashboard = () => {
                               <td style={{ textAlign: 'center' }}>
                                 <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px', fontSize: '0.82rem', color: '#475569' }}>
                                   <Calendar size={13} /> 
-                                  {d.fundId?.dueDate ? new Date(d.fundId.dueDate).toLocaleDateString('en-IN') : 'No Limit'}
+                                  {d.fundId?.dueDate ? new Date(d.fundId.dueDate).toLocaleDateString('en-IN') : t('noLimit')}
                                 </span>
                               </td>
                               <td style={{ textAlign: 'center' }}>
                                 <span className={`status-badge ${isPaid ? 'paid' : isPartial ? 'partially_paid' : 'unpaid'}`}>
-                                  {isPaid ? '✓ Fully Paid' : isPartial ? '⚠️ Partial' : '⚠️ Unpaid'}
+                                  {isPaid ? `✓ ${t('fullyPaid')}` : isPartial ? `⚠️ ${t('partiallyPaid')}` : `⚠️ ${t('unpaid')}`}
                                 </span>
                               </td>
                             </tr>
@@ -748,7 +884,7 @@ const MemberDashboard = () => {
                       ) : (
                         <tr>
                           <td colSpan="7" className="text-center py-6 text-muted" style={{ textAlign: 'center', padding: '30px 0', color: 'var(--text-light)' }}>
-                            No due records found matching the active filters.
+                            {t('noDueRecordsMatching')}
                           </td>
                         </tr>
                       )}
@@ -762,25 +898,25 @@ const MemberDashboard = () => {
             {activeTab === 'receipts' && (
               <div className="glass-panel p-6" style={{ background: 'white', borderRadius: '24px' }}>
                 <h3 style={{ fontSize: '1.25rem', fontWeight: '900', color: '#0f172a', marginBottom: '20px' }}>
-                  Settled Contribution Receipts
+                  {t('settledContributionReceipts')}
                 </h3>
                 
                 {payments.length === 0 ? (
                   <p style={{ textAlign: 'center', color: 'var(--text-light)', padding: '40px 0', fontWeight: '600' }}>
-                    No payment history recorded yet. Visited the cashier counter to settle dues and receive your receipt.
+                    {t('noPaymentHistory')}
                   </p>
                 ) : (
                   <div className="table-wrapper" style={{ overflowX: 'auto' }}>
                     <table className="report-table">
                       <thead>
                         <tr>
-                          <th>Receipt #</th>
-                          <th>Payment Date</th>
-                          <th>Method</th>
-                          <th>Dues Allotted Breakdown</th>
-                          <th>Collected By</th>
-                          <th>Total Amount Paid</th>
-                          <th style={{ textAlign: 'center' }}>Actions</th>
+                          <th>{t('receiptHash')}</th>
+                          <th>{t('paymentDate')}</th>
+                          <th>{t('method')}</th>
+                          <th>{t('duesAllottedBreakdown')}</th>
+                          <th>{t('collectedBy')}</th>
+                          <th>{t('totalAmountPaid')}</th>
+                          <th style={{ textAlign: 'center' }}>{t('actions')}</th>
                         </tr>
                       </thead>
                       <tbody style={{ fontSize: '0.9rem', fontWeight: '600' }}>
@@ -791,7 +927,7 @@ const MemberDashboard = () => {
                             </td>
                             <td>{new Date(p.paymentDate).toLocaleDateString()} • {new Date(p.paymentDate).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</td>
                             <td style={{ textTransform: 'uppercase' }}>
-                              {p.paymentMode === 'cash' ? '💵 Cash' : p.paymentMode === 'upi' ? '📱 UPI' : '💳 Card'}
+                              {p.paymentMode === 'cash' ? `💵 ${t('male') === 'ஆண்' ? 'பணம்' : 'Cash'}` : p.paymentMode === 'upi' ? '📱 UPI' : `💳 ${t('male') === 'ஆண்' ? 'அட்டை' : 'Card'}`}
                             </td>
                             <td>
                               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
@@ -804,7 +940,7 @@ const MemberDashboard = () => {
                             </td>
                             <td>
                               <span style={{ fontWeight: '700', color: '#475569' }}>
-                                {p.cashierId?.name || 'Central Office'}
+                                {p.cashierId?.name || t('villageName')}
                               </span>
                             </td>
                             <td style={{ color: '#10b981', fontSize: '1.05rem', fontWeight: '800' }}>
@@ -817,7 +953,7 @@ const MemberDashboard = () => {
                                 onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--primary-color)'; e.currentTarget.style.color = '#fff'; }}
                                 onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(79, 70, 229, 0.1)'; e.currentTarget.style.color = 'var(--primary-color)'; }}
                               >
-                                <Info size={14} /> View Receipt
+                                <Info size={14} /> {t('printReceipt')}
                               </button>
                             </td>
                           </tr>
@@ -833,33 +969,33 @@ const MemberDashboard = () => {
             {activeTab === 'card' && (
               <div className="glass-panel p-8" style={{ background: 'white', borderRadius: '24px', textAlign: 'center' }}>
                 <h3 style={{ fontSize: '1.4rem', fontWeight: '900', color: '#0f172a', margin: '0 0 10px 0' }}>
-                  Denalai Digital Villager Pass
+                  {t('digitalVerificationCard')}
                 </h3>
                 <p style={{ color: 'var(--text-light)', fontSize: '0.9rem', fontWeight: '600', maxWidth: '500px', margin: '0 auto 30px auto' }}>
-                  Present this card at the village cashier desk for quick outstanding checks and transaction records.
+                  {t('male') === 'ஆண்' ? 'விரைவான நிலுவை சரிபார்ப்புகள் மற்றும் பரிவர்த்தனை பதிவுகளுக்கு இந்த அட்டையை கிராம காசாளர் மேஜையில் வழங்கவும்.' : 'Present this card at the village cashier desk for quick outstanding checks and transaction records.'}
                 </p>
 
                 <div className="digital-card-container">
                   <div className="digital-membership-card">
                     <div className="card-bg-glow"></div>
                     <div className="card-header-row">
-                      <span className="card-logo">🌲 DENALAI VILLAGE</span>
+                      <span className="card-logo">🌲 {t('villageWelfareAssociation').toUpperCase()}</span>
                       <div className="card-chip"></div>
                     </div>
 
                     <div className="card-body">
-                      <h4 className="card-holder-name">{member?.name}</h4>
-                      <span className="card-id-badge">Family Head Pass</span>
+                      <h4 className="card-holder-name">{t(member?.name)}</h4>
+                      <span className="card-id-badge">{t('familyHeadProfile')}</span>
                     </div>
 
                     <div className="card-footer-row">
                       <div className="card-label-value">
-                        <span className="card-meta-label">Family ID Code</span>
+                        <span className="card-meta-label">{t('familyId')}</span>
                         <span className="card-meta-value">{member?.familyId}</span>
                       </div>
                       
                       <div className="card-label-value" style={{ marginLeft: '20px' }}>
-                        <span className="card-meta-label">Member ID</span>
+                        <span className="card-meta-label">{t('memberId')}</span>
                         <span className="card-meta-value">{member?.memberId}</span>
                       </div>
 
@@ -888,46 +1024,46 @@ const MemberDashboard = () => {
               <div className="animate-fade-in">
                 <div className="glass-panel p-6 mb-6" style={{ background: 'white', borderRadius: '24px' }}>
                   <h3 style={{ fontSize: '1.25rem', fontWeight: '900', color: '#0f172a', marginBottom: '8px' }}>
-                    Village Council Central Treasury
+                    {t('villageCouncilCentralTreasury')}
                   </h3>
                   <p style={{ color: '#64748b', fontSize: '0.85rem', fontWeight: '600', marginBottom: '24px' }}>
-                    Real-time official council treasury statement public index.
+                    {t('male') === 'ஆண்' ? 'நிகழ்நேர அதிகாரப்பூர்வ சபை கருவூல அறிக்கை பொதுக் குறியீடு.' : 'Real-time official council treasury statement public index.'}
                   </p>
 
                   <div className="profile-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '20px' }}>
                     <div className="glass-panel p-6" style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '16px' }}>
                       <span style={{ fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.5px', color: '#64748b', fontWeight: '800' }}>
-                        Total Village Allotted
+                        {t('totalAllottedDues')}
                       </span>
                       <h2 style={{ fontSize: '1.8rem', fontWeight: '900', color: '#0f172a', margin: '6px 0 0 0' }}>
                         ₹{centralStats.totalAllotted.toLocaleString()}
                       </h2>
                       <span style={{ fontSize: '0.72rem', color: '#94a3b8', display: 'block', marginTop: '4px' }}>
-                        Total central dues expectations
+                        {t('centralContributionsExpected')}
                       </span>
                     </div>
 
                     <div className="glass-panel p-6" style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '16px' }}>
                       <span style={{ fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.5px', color: '#10b981', fontWeight: '800' }}>
-                        Total Collected Dues
+                        {t('amountCleared')}
                       </span>
                       <h2 style={{ fontSize: '1.8rem', fontWeight: '900', color: '#10b981', margin: '6px 0 0 0' }}>
                         ₹{centralStats.totalCollected.toLocaleString()}
                       </h2>
                       <span style={{ fontSize: '0.72rem', color: '#94a3b8', display: 'block', marginTop: '4px' }}>
-                        Cleared villager contributions
+                        {t('receiptedFundsSettled')}
                       </span>
                     </div>
 
                     <div className="glass-panel p-6" style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '16px' }}>
                       <span style={{ fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.5px', color: '#ef4444', fontWeight: '800' }}>
-                        Outstanding Pending
+                        {t('outstandingUnpaid')}
                       </span>
                       <h2 style={{ fontSize: '1.8rem', fontWeight: '900', color: '#ef4444', margin: '6px 0 0 0' }}>
                         ₹{centralStats.totalPendingDues.toLocaleString()}
                       </h2>
                       <span style={{ fontSize: '0.72rem', color: '#94a3b8', display: 'block', marginTop: '4px' }}>
-                        Outstanding default reserves
+                        {t('male') === 'ஆண்' ? 'நிலுவையில் உள்ள தொகைகள்' : 'Outstanding default reserves'}
                       </span>
                     </div>
 
@@ -947,37 +1083,37 @@ const MemberDashboard = () => {
                     >
                       <div style={{ position: 'absolute', top: 0, right: 0, width: '4px', height: '100%', background: '#b91c1c' }}></div>
                       <span style={{ fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.5px', color: '#b91c1c', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                        Total Expenses Paid 🔍
+                        {t('totalSpentFunds')} 🔍
                       </span>
                       <h2 style={{ fontSize: '1.8rem', fontWeight: '900', color: '#b91c1c', margin: '6px 0 0 0' }}>
                         ₹{centralStats.totalSpent.toLocaleString()}
                       </h2>
                       <span style={{ fontSize: '0.72rem', color: showExpenseDetails ? '#b91c1c' : '#94a3b8', display: 'block', marginTop: '4px', fontWeight: '700' }}>
-                        {showExpenseDetails ? '▲ Click to hide details' : '▼ Click to view itemized bills'}
+                        {showExpenseDetails ? (t('male') === 'ஆண்' ? '▲ விவரங்களை மறைக்க கிளிக் செய்யவும்' : '▲ Click to hide details') : (t('male') === 'ஆண்' ? '▼ உருப்படி வாரியான விவரங்களைப் பார்க்க கிளிக் செய்யவும்' : '▼ Click to view itemized bills')}
                       </span>
                     </div>
 
                     <div className="glass-panel p-6" style={{ background: '#f0f9ff', border: '1px solid #bae6fd', borderRadius: '16px' }}>
                       <span style={{ fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.5px', color: '#0284c7', fontWeight: '800' }}>
-                        Total Donations Collected
+                        {t('totalMemberDonations')}
                       </span>
                       <h2 style={{ fontSize: '1.8rem', fontWeight: '900', color: '#0284c7', margin: '6px 0 0 0' }}>
                         ₹{(centralStats.totalDonations || 0).toLocaleString()}
                       </h2>
                       <span style={{ fontSize: '0.72rem', color: '#0284c7', display: 'block', marginTop: '4px', opacity: 0.8 }}>
-                        General public contributions
+                        {t('male') === 'ஆண்' ? 'பொது மக்கள் பங்களிப்புகள்' : 'General public contributions'}
                       </span>
                     </div>
 
                     <div className="glass-panel p-6" style={{ background: 'linear-gradient(135deg, #ea580c 0%, #f59e0b 100%)', border: 'none', color: '#ffffff', borderRadius: '16px', boxShadow: '0 10px 20px rgba(234, 88, 12, 0.15)' }}>
                       <span style={{ fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.5px', color: '#ffedd5', fontWeight: '800' }}>
-                        Net Account Balance
+                        {t('netTreasuryBalance')}
                       </span>
                       <h2 style={{ fontSize: '1.8rem', fontWeight: '900', color: '#ffffff', margin: '6px 0 0 0' }}>
                         ₹{centralStats.currentBalance.toLocaleString()}
                       </h2>
                       <span style={{ fontSize: '0.72rem', color: '#ffedd5', display: 'block', marginTop: '4px' }}>
-                        Currently held in central accounts
+                        {t('male') === 'ஆண்' ? 'தற்போது மத்திய கணக்குகளில் உள்ள தொகை' : 'Currently held in central accounts'}
                       </span>
                     </div>
                   </div>
@@ -988,10 +1124,10 @@ const MemberDashboard = () => {
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px', marginBottom: '20px', borderBottom: '1px solid #f1f5f9', paddingBottom: '12px' }}>
                         <div>
                           <h4 style={{ fontSize: '1.1rem', fontWeight: '800', color: '#0f172a', margin: 0 }}>
-                            Central Approved Expenses Ledger
+                            {t('expenditureLedgerAudit')}
                           </h4>
                           <span style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: '600' }}>
-                            Transparent itemized list of all approved village outlays.
+                            {t('male') === 'ஆண்' ? 'அங்கீகரிக்கப்பட்ட அனைத்து செலவுகளின் வெளிப்படையான பட்டியல்.' : 'Transparent itemized list of all approved village outlays.'}
                           </span>
                         </div>
                         
@@ -1001,7 +1137,7 @@ const MemberDashboard = () => {
                             <Search size={13} style={{ position: 'absolute', left: '8px', top: '50%', transform: 'translateY(-50%)', color: '#64748b' }} />
                             <input 
                               type="text"
-                              placeholder="Search expenses..."
+                              placeholder={t('searchExpensePlaceholder')}
                               value={searchExpenseTitle}
                               onChange={(e) => setSearchExpenseTitle(e.target.value)}
                               style={{
@@ -1031,7 +1167,7 @@ const MemberDashboard = () => {
                           >
                             {centralExpenseCategories.map(cat => (
                               <option key={cat} value={cat}>
-                                {cat === 'all' ? 'All Categories' : cat}
+                                {cat === 'all' ? t('allCategories') : cat}
                               </option>
                             ))}
                           </select>
@@ -1049,9 +1185,9 @@ const MemberDashboard = () => {
                               cursor: 'pointer'
                             }}
                           >
-                            <option value="all">All Dates</option>
-                            <option value="month">This Month</option>
-                            <option value="year">This Year</option>
+                            <option value="all">{t('allDates')}</option>
+                            <option value="month">{t('currentMonth')}</option>
+                            <option value="year">{t('currentYear')}</option>
                           </select>
                         </div>
                       </div>
@@ -1060,11 +1196,11 @@ const MemberDashboard = () => {
                         <table className="report-table" style={{ width: '100%' }}>
                           <thead>
                             <tr>
-                              <th>Expense Title</th>
-                              <th>Category</th>
-                              <th>Amount Settled</th>
-                              <th>Payment Date</th>
-                              <th>Logged By</th>
+                              <th>{t('expenseTitle')}</th>
+                              <th>{t('category')}</th>
+                              <th>{t('amount')}</th>
+                              <th>{t('date')}</th>
+                              <th>{t('collectedBy')}</th>
                             </tr>
                           </thead>
                           <tbody style={{ fontSize: '0.85rem', fontWeight: '600' }}>
@@ -1099,7 +1235,7 @@ const MemberDashboard = () => {
                             ) : (
                               <tr>
                                 <td colSpan="5" className="text-center py-6 text-muted" style={{ textAlign: 'center', padding: '24px 0', color: '#64748b' }}>
-                                  No matching central expenses found.
+                                  {t('noExpenseItems')}
                                 </td>
                               </tr>
                             )}
@@ -1116,10 +1252,10 @@ const MemberDashboard = () => {
             {activeTab === 'password' && (
               <div className="glass-panel p-8 animate-fade-in" style={{ background: 'white', borderRadius: '24px', maxWidth: '480px', margin: '0 auto', boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.05)' }}>
                 <h3 style={{ fontSize: '1.25rem', fontWeight: '950', color: '#0f172a', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <Lock size={20} color="var(--primary-color)" /> Update Password
+                  <Lock size={20} color="var(--primary-color)" /> {t('changePassword')}
                 </h3>
                 <p style={{ color: '#64748b', fontSize: '0.85rem', fontWeight: '600', marginBottom: '24px' }}>
-                  Change your login credentials to protect your digital villager account.
+                  {t('male') === 'ஆண்' ? 'உங்கள் டிஜிட்டல் கிராம கணக்கைப் பாதுகாக்க உங்கள் உள்நுழைவு நற்சான்றிதழ்களை மாற்றவும்.' : 'Change your login credentials to protect your digital villager account.'}
                 </p>
 
                 {pwdStatus.message && (
@@ -1143,11 +1279,11 @@ const MemberDashboard = () => {
 
                 <form onSubmit={handlePasswordChange} style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                    <label style={{ fontSize: '0.82rem', fontWeight: '700', color: '#475569' }}>Current Password</label>
+                    <label style={{ fontSize: '0.82rem', fontWeight: '700', color: '#475569' }}>{t('currentPassword')}</label>
                     <input 
                       type="password"
                       required
-                      placeholder="Enter current password..."
+                      placeholder={t('male') === 'ஆண்' ? 'தற்போதைய கடவுச்சொல்லை உள்ளிடவும்...' : 'Enter current password...'}
                       value={currentPassword}
                       onChange={(e) => setCurrentPassword(e.target.value)}
                       style={{ padding: '11px 14px', borderRadius: '10px', border: '1px solid #cbd5e1', outline: 'none', fontSize: '0.9rem', width: '100%', boxSizing: 'border-box' }}
@@ -1155,11 +1291,11 @@ const MemberDashboard = () => {
                   </div>
 
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                    <label style={{ fontSize: '0.82rem', fontWeight: '700', color: '#475569' }}>New Password</label>
+                    <label style={{ fontSize: '0.82rem', fontWeight: '700', color: '#475569' }}>{t('newPassword')}</label>
                     <input 
                       type="password"
                       required
-                      placeholder="Min 5 characters..."
+                      placeholder={t('male') === 'ஆண்' ? 'குறைந்தது 5 எழுத்துக்கள்...' : 'Min 5 characters...'}
                       value={newPassword}
                       onChange={(e) => setNewPassword(e.target.value)}
                       style={{ padding: '11px 14px', borderRadius: '10px', border: '1px solid #cbd5e1', outline: 'none', fontSize: '0.9rem', width: '100%', boxSizing: 'border-box' }}
@@ -1167,11 +1303,11 @@ const MemberDashboard = () => {
                   </div>
 
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                    <label style={{ fontSize: '0.82rem', fontWeight: '700', color: '#475569' }}>Confirm New Password</label>
+                    <label style={{ fontSize: '0.82rem', fontWeight: '700', color: '#475569' }}>{t('confirmPassword')}</label>
                     <input 
                       type="password"
                       required
-                      placeholder="Confirm new password..."
+                      placeholder={t('male') === 'ஆண்' ? 'புதிய கடவுச்சொல்லை உறுதிப்படுத்தவும்...' : 'Confirm new password...'}
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
                       style={{ padding: '11px 14px', borderRadius: '10px', border: '1px solid #cbd5e1', outline: 'none', fontSize: '0.9rem', width: '100%', boxSizing: 'border-box' }}
@@ -1199,7 +1335,7 @@ const MemberDashboard = () => {
                       transition: 'all 0.2s'
                     }}
                   >
-                    {pwdLoading ? 'Saving...' : 'Update Password'}
+                    {pwdLoading ? t('updating') : t('changePassword')}
                   </button>
                 </form>
               </div>
@@ -1214,7 +1350,7 @@ const MemberDashboard = () => {
           <div className="modal-content animate-scale-up" style={{ width: '100%', maxWidth: '440px', background: 'white', border: '1px solid #cbd5e1', borderRadius: '24px', padding: '30px', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #e2e8f0', paddingBottom: '12px', marginBottom: '20px' }}>
               <h3 style={{ margin: 0, fontSize: '1.15rem', color: '#0f172a', fontWeight: '800' }}>
-                {editingSubIndex !== null ? '✏️ Edit Family Member' : '➕ Add Family Member'}
+                {editingSubIndex !== null ? `✏️ ${t('editFamilyMember')}` : `➕ ${t('addFamilyMember')}`}
               </h3>
               <button 
                 onClick={() => setShowSubModal(false)}
@@ -1245,11 +1381,11 @@ const MemberDashboard = () => {
 
             <form onSubmit={handleSaveSub} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                <label style={{ fontSize: '0.82rem', fontWeight: '700', color: '#475569' }}>Full Name</label>
+                <label style={{ fontSize: '0.82rem', fontWeight: '700', color: '#475569' }}>{t('fullName')}</label>
                 <input 
                   type="text"
                   required
-                  placeholder="Enter full name..."
+                  placeholder={t('male') === 'ஆண்' ? 'முழு பெயரை உள்ளிடவும்...' : 'Enter full name...'}
                   value={subForm.name}
                   onChange={(e) => setSubForm({ ...subForm, name: e.target.value })}
                   style={{ padding: '10px 12px', borderRadius: '10px', border: '1px solid #cbd5e1', outline: 'none', fontSize: '0.9rem' }}
@@ -1257,17 +1393,26 @@ const MemberDashboard = () => {
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                <label style={{ fontSize: '0.82rem', fontWeight: '700', color: '#475569' }}>Relationship</label>
+                <label style={{ fontSize: '0.82rem', fontWeight: '700', color: '#475569' }}>{t('relationshipToHead')}</label>
                 <select 
                   required
                   value={subForm.relation}
                   onChange={(e) => setSubForm({ ...subForm, relation: e.target.value })}
                   style={{ padding: '10px 12px', borderRadius: '10px', border: '1px solid #cbd5e1', outline: 'none', fontSize: '0.9rem', color: '#475569' }}
                 >
-                  <option value="" disabled>Select relationship...</option>
-                  {["Husband", "Wife", "Son", "Daughter", "Father", "Mother", "Brother", "Sister", "Grandson", "Granddaughter", "Other"].map(opt => (
-                    <option key={opt} value={opt}>{opt}</option>
-                  ))}
+                  <option value="" disabled>{t('male') === 'ஆண்' ? 'உறவைத் தேர்ந்தெடுக்கவும்...' : 'Select relationship...'}</option>
+                  {["Husband", "Wife", "Son", "Daughter", "Father", "Mother", "Brother", "Sister", "Grandson", "Granddaughter", "Other"].map(opt => {
+                    let disp = opt;
+                    if (t('male') === 'ஆண்') {
+                      const mappings = {
+                        "Husband": "கணவர்", "Wife": "மனைவி", "Son": "மகன்", "Daughter": "மகள்",
+                        "Father": "தந்தை", "Mother": "தாய்", "Brother": "சகோதரன்", "Sister": "சகோதரி",
+                        "Grandson": "பேரன்", "Granddaughter": "பேத்தி", "Other": "இதர"
+                      };
+                      disp = mappings[opt] || opt;
+                    }
+                    return <option key={opt} value={opt}>{disp}</option>;
+                  })}
                   {subForm.relation && !["Husband", "Wife", "Son", "Daughter", "Father", "Mother", "Brother", "Sister", "Grandson", "Granddaughter", "Other"].includes(subForm.relation) && (
                     <option value={subForm.relation}>{subForm.relation}</option>
                   )}
@@ -1276,7 +1421,7 @@ const MemberDashboard = () => {
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  <label style={{ fontSize: '0.82rem', fontWeight: '700', color: '#475569' }}>Age</label>
+                  <label style={{ fontSize: '0.82rem', fontWeight: '700', color: '#475569' }}>{t('age')}</label>
                   <input 
                     type="number"
                     placeholder="e.g. 24"
@@ -1287,15 +1432,15 @@ const MemberDashboard = () => {
                 </div>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  <label style={{ fontSize: '0.82rem', fontWeight: '700', color: '#475569' }}>Gender</label>
+                  <label style={{ fontSize: '0.82rem', fontWeight: '700', color: '#475569' }}>{t('gender')}</label>
                   <select 
                     value={subForm.gender}
                     onChange={(e) => setSubForm({ ...subForm, gender: e.target.value })}
                     style={{ padding: '10px 12px', borderRadius: '10px', border: '1px solid #cbd5e1', outline: 'none', fontSize: '0.9rem', color: '#475569' }}
                   >
-                    <option value="male">Male</option>
-                    <option value="female">Female</option>
-                    <option value="other">Other</option>
+                    <option value="male">{t('male')}</option>
+                    <option value="female">{t('female')}</option>
+                    <option value="other">{t('other')}</option>
                   </select>
                 </div>
               </div>
@@ -1306,13 +1451,13 @@ const MemberDashboard = () => {
                   onClick={() => setShowSubModal(false)}
                   style={{ background: '#f1f5f9', color: '#475569', border: 'none', padding: '10px 18px', borderRadius: '10px', fontWeight: '700', cursor: 'pointer', fontSize: '0.85rem' }}
                 >
-                  Cancel
+                  {t('cancel')}
                 </button>
                 <button 
                   type="submit"
                   style={{ background: 'var(--primary-color)', color: 'white', border: 'none', padding: '10px 18px', borderRadius: '10px', fontWeight: '800', cursor: 'pointer', fontSize: '0.85rem' }}
                 >
-                  Save Member
+                  {t('saveFamilyMember')}
                 </button>
               </div>
             </form>
@@ -1325,7 +1470,7 @@ const MemberDashboard = () => {
           <div className="modal-content animate-scale-up" style={{ width: '100%', maxWidth: '460px', background: 'white', border: '1px solid #cbd5e1', borderRadius: '24px', padding: '30px', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #e2e8f0', paddingBottom: '12px', marginBottom: '20px' }}>
               <h3 style={{ margin: 0, fontSize: '1.15rem', color: '#0f172a', fontWeight: '800' }}>
-                ✏️ Edit Household Head Profile
+                ✏️ {t('editHouseholdProfile')}
               </h3>
               <button 
                 onClick={() => setShowProfileModal(false)}
@@ -1357,7 +1502,7 @@ const MemberDashboard = () => {
             <form onSubmit={handleSaveProfile} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  <label style={{ fontSize: '0.82rem', fontWeight: '700', color: '#64748b' }}>Unique Member ID</label>
+                  <label style={{ fontSize: '0.82rem', fontWeight: '700', color: '#64748b' }}>{t('uniqueMemberId')}</label>
                   <input 
                     type="text"
                     disabled
@@ -1367,7 +1512,7 @@ const MemberDashboard = () => {
                 </div>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  <label style={{ fontSize: '0.82rem', fontWeight: '700', color: '#64748b' }}>Family ID / Code</label>
+                  <label style={{ fontSize: '0.82rem', fontWeight: '700', color: '#64748b' }}>{t('familyId')}</label>
                   <input 
                     type="text"
                     disabled
@@ -1378,11 +1523,11 @@ const MemberDashboard = () => {
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                <label style={{ fontSize: '0.82rem', fontWeight: '700', color: '#475569' }}>Full Name</label>
+                <label style={{ fontSize: '0.82rem', fontWeight: '700', color: '#475569' }}>{t('fullName')}</label>
                 <input 
                   type="text"
                   required
-                  placeholder="Enter full name..."
+                  placeholder={t('male') === 'ஆண்' ? 'முழு பெயரை உள்ளிடவும்...' : 'Enter full name...'}
                   value={profileForm.name}
                   onChange={(e) => setProfileForm({ ...profileForm, name: e.target.value })}
                   style={{ padding: '10px 12px', borderRadius: '10px', border: '1px solid #cbd5e1', outline: 'none', fontSize: '0.9rem' }}
@@ -1390,11 +1535,11 @@ const MemberDashboard = () => {
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                <label style={{ fontSize: '0.82rem', fontWeight: '700', color: '#475569' }}>Mobile Contact</label>
+                <label style={{ fontSize: '0.82rem', fontWeight: '700', color: '#475569' }}>{t('mobileNumber')}</label>
                 <input 
                   type="text"
                   required
-                  placeholder="10-digit phone number..."
+                  placeholder={t('male') === 'ஆண்' ? '10-இலக்க தொலைபேசி எண்...' : '10-digit phone number...'}
                   value={profileForm.phone}
                   onChange={(e) => setProfileForm({ ...profileForm, phone: e.target.value })}
                   style={{ padding: '10px 12px', borderRadius: '10px', border: '1px solid #cbd5e1', outline: 'none', fontSize: '0.9rem' }}
@@ -1403,7 +1548,7 @@ const MemberDashboard = () => {
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  <label style={{ fontSize: '0.82rem', fontWeight: '700', color: '#475569' }}>Age</label>
+                  <label style={{ fontSize: '0.82rem', fontWeight: '700', color: '#475569' }}>{t('age')}</label>
                   <input 
                     type="number"
                     placeholder="e.g. 45"
@@ -1414,15 +1559,15 @@ const MemberDashboard = () => {
                 </div>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  <label style={{ fontSize: '0.82rem', fontWeight: '700', color: '#475569' }}>Gender</label>
+                  <label style={{ fontSize: '0.82rem', fontWeight: '700', color: '#475569' }}>{t('gender')}</label>
                   <select 
                     value={profileForm.gender}
                     onChange={(e) => setProfileForm({ ...profileForm, gender: e.target.value })}
                     style={{ padding: '10px 12px', borderRadius: '10px', border: '1px solid #cbd5e1', outline: 'none', fontSize: '0.9rem', color: '#475569' }}
                   >
-                    <option value="male">Male</option>
-                    <option value="female">Female</option>
-                    <option value="other">Other</option>
+                    <option value="male">{t('male')}</option>
+                    <option value="female">{t('female')}</option>
+                    <option value="other">{t('other')}</option>
                   </select>
                 </div>
               </div>
@@ -1433,13 +1578,13 @@ const MemberDashboard = () => {
                   onClick={() => setShowProfileModal(false)}
                   style={{ background: '#f1f5f9', color: '#475569', border: 'none', padding: '10px 18px', borderRadius: '10px', fontWeight: '700', cursor: 'pointer', fontSize: '0.85rem' }}
                 >
-                  Cancel
+                  {t('cancel')}
                 </button>
                 <button 
                   type="submit"
                   style={{ background: 'var(--primary-color)', color: 'white', border: 'none', padding: '10px 18px', borderRadius: '10px', fontWeight: '800', cursor: 'pointer', fontSize: '0.85rem' }}
                 >
-                  Save Profile
+                  {t('saveChanges')}
                 </button>
               </div>
             </form>
@@ -1454,7 +1599,7 @@ const MemberDashboard = () => {
             
             {/* Modal Actions Area */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #e2e8f0', paddingBottom: '16px', marginBottom: '24px' }}>
-              <h3 style={{ margin: 0, fontSize: '1.25rem', color: '#0f172a', fontWeight: '800' }}>🌲 Payment Receipt Invoice</h3>
+              <h3 style={{ margin: 0, fontSize: '1.25rem', color: '#0f172a', fontWeight: '800' }}>🌲 {t('paymentReceipt')}</h3>
               <button 
                 onClick={() => setShowReceiptModal(false)}
                 style={{ background: '#f1f5f9', border: 'none', color: '#64748b', width: '36px', height: '36px', borderRadius: '50%', cursor: 'pointer', fontSize: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '800' }}
@@ -1466,38 +1611,40 @@ const MemberDashboard = () => {
             {/* Printable Receipt layout */}
             <div id="receipt-visual-content" style={{ border: '2px solid #cbd5e1', borderRadius: '16px', padding: '24px', background: '#f8fafc', color: '#0f172a', fontFamily: 'monospace' }}>
               <div style={{ textAlign: 'center', marginBottom: '20px', borderBottom: '1px dashed #cbd5e1', paddingBottom: '16px' }}>
-                <h2 style={{ margin: '0 0 4px 0', fontSize: '1.3rem', fontWeight: 'bold' }}>DENALAI VILLAGE COUNCIL</h2>
-                <p style={{ margin: 0, fontSize: '0.8rem', color: '#64748b' }}>Central Treasury & Financial Office</p>
+                <h2 style={{ margin: '0 0 4px 0', fontSize: '1.3rem', fontWeight: 'bold' }}>{t('villageWelfareAssociation').toUpperCase()}</h2>
+                <p style={{ margin: 0, fontSize: '0.8rem', color: '#64748b' }}>{t('villageName')} Central treasury Office</p>
                 <p style={{ margin: '4px 0 0 0', fontSize: '0.82rem', fontWeight: 'bold', color: 'var(--primary-color)' }}>
-                  RECEIPT NUMBER: #{currentReceipt.receiptNumber}
+                  {t('receiptHash')}: #{currentReceipt.receiptNumber}
                 </p>
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '0.85rem', marginBottom: '20px', borderBottom: '1px dashed #cbd5e1', paddingBottom: '16px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span>Household Head:</span>
-                  <strong>{currentReceipt.memberId?.name}</strong>
+                  <span>{t('householdHeadName')}:</span>
+                  <strong>{t(currentReceipt.memberId?.name)}</strong>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span>Family ID Code:</span>
+                  <span>{t('familyId')}:</span>
                   <strong>#{currentReceipt.memberId?.familyId}</strong>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span>Member Pass ID:</span>
+                  <span>{t('memberId')}:</span>
                   <strong>{currentReceipt.memberId?.memberId}</strong>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span>Payment Date:</span>
+                  <span>{t('paymentDate')}:</span>
                   <strong>{new Date(currentReceipt.paymentDate).toLocaleString('en-IN')}</strong>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span>Paid Channel:</span>
-                  <strong style={{ textTransform: 'uppercase' }}>{currentReceipt.paymentMode}</strong>
+                  <span>{t('method')}:</span>
+                  <strong style={{ textTransform: 'uppercase' }}>
+                    {currentReceipt.paymentMode === 'cash' ? (t('male') === 'ஆண்' ? 'பணம்' : 'Cash') : currentReceipt.paymentMode === 'upi' ? 'UPI' : (t('male') === 'ஆண்' ? 'அட்டை' : 'Card')}
+                  </strong>
                 </div>
                 {currentReceipt.cashierId?.name && (
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span>Council Cashier:</span>
-                    <strong>{currentReceipt.cashierId.name}</strong>
+                    <span>{t('collectedBy')}:</span>
+                    <strong>{t(currentReceipt.cashierId.name)}</strong>
                   </div>
                 )}
               </div>
@@ -1505,8 +1652,8 @@ const MemberDashboard = () => {
               {/* Fund Breakdown table */}
               <div style={{ marginBottom: '20px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #cbd5e1', paddingBottom: '6px', fontSize: '0.8rem', fontWeight: 'bold', color: '#64748b' }}>
-                  <span>CONTRIBUTION / FUND DETAIL</span>
-                  <span>AMOUNT ALLOCATED</span>
+                  <span>{t('duesAllottedBreakdown')}</span>
+                  <span>{t('amount')}</span>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '10px' }}>
                   {currentReceipt.splitDetails?.map((split, idx) => (
@@ -1520,13 +1667,13 @@ const MemberDashboard = () => {
 
               {/* Total Row */}
               <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '2px solid #0f172a', paddingTop: '12px', fontSize: '1.1rem', fontWeight: 'bold', color: '#10b981' }}>
-                <span>TOTAL SETTLED</span>
+                <span>{t('totalAmountPaid')}</span>
                 <span>₹{currentReceipt.totalAmountPaid.toLocaleString()}</span>
               </div>
 
               {currentReceipt.notes && (
                 <div style={{ marginTop: '20px', background: '#ffffff', border: '1px solid #cbd5e1', borderRadius: '8px', padding: '10px', fontSize: '0.8rem' }}>
-                  <span style={{ color: '#64748b', display: 'block', fontWeight: 'bold', marginBottom: '2px' }}>OFFICE REMARKS</span>
+                  <span style={{ color: '#64748b', display: 'block', fontWeight: 'bold', marginBottom: '2px' }}>{t('male') === 'ஆண்' ? 'அலுவலக குறிப்புகள்' : 'OFFICE REMARKS'}</span>
                   {currentReceipt.notes}
                 </div>
               )}
@@ -1536,45 +1683,47 @@ const MemberDashboard = () => {
             <div id="receipt-print-area" style={{ display: 'none' }}>
               <div style={{ padding: '40px', fontFamily: 'monospace', color: '#000', background: '#fff' }}>
                 <div style={{ textAlign: 'center', marginBottom: '30px', borderBottom: '2px dashed #000', paddingBottom: '20px' }}>
-                  <h1 style={{ margin: '0 0 6px 0', fontSize: '1.7rem' }}>DENALAI VILLAGE COUNCIL</h1>
-                  <h3 style={{ margin: '0 0 6px 0', fontSize: '1.1rem' }}>CENTRAL COUNTER RECEIPT</h3>
-                  <p style={{ margin: 0, fontSize: '0.9rem' }}>Central Treasury Office, Denalai Village Council</p>
-                  <p style={{ margin: '8px 0 0 0', fontSize: '1rem', fontWeight: 'bold' }}>RECEIPT NUMBER: #{currentReceipt.receiptNumber}</p>
+                  <h1 style={{ margin: '0 0 6px 0', fontSize: '1.7rem' }}>{t('villageWelfareAssociation').toUpperCase()}</h1>
+                  <h3 style={{ margin: '0 0 6px 0', fontSize: '1.1rem' }}>{t('paymentReceipt')}</h3>
+                  <p style={{ margin: 0, fontSize: '0.9rem' }}>{t('villageName')} Central treasury Office</p>
+                  <p style={{ margin: '8px 0 0 0', fontSize: '1rem', fontWeight: 'bold' }}>{t('receiptHash')}: #{currentReceipt.receiptNumber}</p>
                 </div>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', fontSize: '0.95rem', marginBottom: '30px', borderBottom: '2px dashed #000', paddingBottom: '20px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span>HOUSEHOLD HEAD:</span>
-                    <strong>{currentReceipt.memberId?.name}</strong>
+                    <span>{t('householdHeadName').toUpperCase()}:</span>
+                    <strong>{t(currentReceipt.memberId?.name)}</strong>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span>FAMILY ID CODE:</span>
+                    <span>{t('familyId').toUpperCase()}:</span>
                     <strong>#{currentReceipt.memberId?.familyId}</strong>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span>MEMBER ID:</span>
+                    <span>{t('memberId').toUpperCase()}:</span>
                     <strong>{currentReceipt.memberId?.memberId}</strong>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span>PAYMENT DATE:</span>
+                    <span>{t('paymentDate').toUpperCase()}:</span>
                     <strong>{new Date(currentReceipt.paymentDate).toLocaleString('en-IN')}</strong>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span>CHANNEL:</span>
-                    <strong style={{ textTransform: 'uppercase' }}>{currentReceipt.paymentMode}</strong>
+                    <span>{t('method').toUpperCase()}:</span>
+                    <strong style={{ textTransform: 'uppercase' }}>
+                      {currentReceipt.paymentMode === 'cash' ? (t('male') === 'ஆண்' ? 'பணம்' : 'Cash') : currentReceipt.paymentMode === 'upi' ? 'UPI' : (t('male') === 'ஆண்' ? 'அட்டை' : 'Card')}
+                    </strong>
                   </div>
                   {currentReceipt.cashierId?.name && (
                     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <span>CASHIER ASSIGNED:</span>
-                      <strong>{currentReceipt.cashierId.name}</strong>
+                      <span>{t('collectedBy').toUpperCase()}:</span>
+                      <strong>{t(currentReceipt.cashierId.name)}</strong>
                     </div>
                   )}
                 </div>
 
                 <div style={{ marginBottom: '30px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '2px solid #000', paddingBottom: '8px', fontSize: '0.9rem', fontWeight: 'bold' }}>
-                    <span>CONTRIBUTION / FUND DETAIL</span>
-                    <span>AMOUNT ALLOCATED</span>
+                    <span>{t('duesAllottedBreakdown')}</span>
+                    <span>{t('amount')}</span>
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '12px' }}>
                     {currentReceipt.splitDetails?.map((split, idx) => (
@@ -1587,20 +1736,20 @@ const MemberDashboard = () => {
                 </div>
 
                 <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '3px solid #000', paddingTop: '15px', fontSize: '1.25rem', fontWeight: 'bold' }}>
-                  <span>TOTAL PAID SETTLED</span>
+                  <span>{t('totalAmountPaid').toUpperCase()}</span>
                   <span>INR {currentReceipt.totalAmountPaid.toLocaleString()}.00</span>
                 </div>
 
                 {currentReceipt.notes && (
                   <div style={{ marginTop: '30px', border: '1px solid #000', padding: '15px', fontSize: '0.9rem' }}>
-                    <strong style={{ display: 'block', marginBottom: '5px' }}>OFFICE REMARKS:</strong>
+                    <strong style={{ display: 'block', marginBottom: '5px' }}>{t('male') === 'ஆண்' ? 'அலுவலக குறிப்புகள்' : 'OFFICE REMARKS'}:</strong>
                     {currentReceipt.notes}
                   </div>
                 )}
 
                 <div style={{ marginTop: '60px', textAlign: 'center', borderTop: '1px solid #ccc', paddingTop: '20px', fontSize: '0.85rem', color: '#666' }}>
-                  <p>Council Authorized Digital Receipt • Signature Not Required</p>
-                  <p>Thank you for contributing towards Denalai Village development and welfare.</p>
+                  <p>{t('male') === 'ஆண்' ? 'அங்கீகரிக்கப்பட்ட டிஜிட்டல் ரசீது • கையொப்பம் தேவையில்லை' : 'Council Authorized Digital Receipt • Signature Not Required'}</p>
+                  <p>{t('thankYou')}</p>
                 </div>
               </div>
             </div>
@@ -1611,13 +1760,13 @@ const MemberDashboard = () => {
                 onClick={handlePrintReceipt}
                 style={{ background: 'var(--primary-color)', color: 'white', border: 'none', padding: '12px 24px', borderRadius: '12px', fontWeight: '800', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', boxShadow: '0 4px 10px rgba(79, 70, 229, 0.2)' }}
               >
-                <Printer size={16} /> Print / Export PDF
+                <Printer size={16} /> {t('printReceipt')}
               </button>
               <button 
                 onClick={() => setShowReceiptModal(false)}
                 style={{ background: '#f1f5f9', color: '#334155', border: 'none', padding: '12px 24px', borderRadius: '12px', fontWeight: '800', cursor: 'pointer' }}
               >
-                Close View
+                {t('close')}
               </button>
             </div>
 

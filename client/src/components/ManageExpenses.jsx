@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import axios from 'axios';
-import { Receipt, Plus, Search, Filter, Edit, Trash2, CheckCircle, AlertCircle, Clock, X, DollarSign, Tag, Calendar, User, Download, Printer } from 'lucide-react';
+import { Receipt, Plus, Search, Filter, Edit, Trash2, CheckCircle, AlertCircle, Clock, X, DollarSign, Tag, Calendar, User, Download, Printer, Camera, Eye, RefreshCw, Upload, FileText } from 'lucide-react';
+import Tesseract from 'tesseract.js';
 
 const ManageExpenses = ({ isCashier = false, currentCashier = null }) => {
   const [expenses, setExpenses] = useState([]);
@@ -19,6 +20,16 @@ const ManageExpenses = ({ isCashier = false, currentCashier = null }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState('create'); // 'create' or 'edit'
   const [selectedExpense, setSelectedExpense] = useState(null);
+
+  // Scanning & Preview states
+  const [scanning, setScanning] = useState(false);
+  const [scanProgress, setScanProgress] = useState(0);
+  const [previewImageSrc, setPreviewImageSrc] = useState('');
+
+  // Camera refs and active state
+  const videoRef = useRef(null);
+  const streamRef = useRef(null);
+  const [cameraActive, setCameraActive] = useState(false);
   
   // Form fields
   const [formData, setFormData] = useState({
@@ -28,7 +39,8 @@ const ManageExpenses = ({ isCashier = false, currentCashier = null }) => {
     category: 'Infrastructure & Roads',
     subDetails: '',
     cashierId: '',
-    status: isCashier ? 'pending' : 'approved'
+    status: isCashier ? 'pending' : 'approved',
+    billImage: ''
   });
 
   // Delete Modal state
@@ -84,6 +96,24 @@ const ManageExpenses = ({ isCashier = false, currentCashier = null }) => {
     fetchExpensesAndCashiers();
   }, [isCashier, currentCashier]);
 
+  useEffect(() => {
+    // Load PDF.js dynamically from CDN to parse PDFs in the browser
+    if (!window.pdfjsLib && !window['pdfjs-dist/build/pdf']) {
+      const script = document.createElement('script');
+      script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js';
+      script.onload = () => {
+        const pdfjsLib = window.pdfjsLib || window['pdfjs-dist/build/pdf'];
+        if (pdfjsLib) {
+          // Bypassing Worker CORS restriction via Blob URL wrapper
+          const workerCode = "importScripts('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js');";
+          const blob = new Blob([workerCode], { type: 'application/javascript' });
+          pdfjsLib.GlobalWorkerOptions.workerSrc = URL.createObjectURL(blob);
+        }
+      };
+      document.body.appendChild(script);
+    }
+  }, []);
+
   const handleOpenCreateModal = () => {
     setModalMode('create');
     setSelectedExpense(null);
@@ -94,7 +124,8 @@ const ManageExpenses = ({ isCashier = false, currentCashier = null }) => {
       category: 'Infrastructure & Roads',
       subDetails: '',
       cashierId: isCashier ? currentCashier?._id : (cashiers.length > 0 ? cashiers[0]._id : ''),
-      status: isCashier ? 'pending' : 'approved'
+      status: isCashier ? 'pending' : 'approved',
+      billImage: ''
     });
     setIsModalOpen(true);
   };
@@ -109,9 +140,591 @@ const ManageExpenses = ({ isCashier = false, currentCashier = null }) => {
       category: expense.category || 'Infrastructure & Roads',
       subDetails: expense.subDetails || '',
       cashierId: expense.cashierId?._id || expense.cashierId || (isCashier ? currentCashier?._id : (cashiers.length > 0 ? cashiers[0]._id : '')),
-      status: expense.status || (isCashier ? 'pending' : 'approved')
+      status: expense.status || (isCashier ? 'pending' : 'approved'),
+      billImage: expense.billImage || ''
     });
     setIsModalOpen(true);
+  };
+
+  // OCR and File Scanning Handlers
+  const handleCloseModal = () => {
+    stopCamera();
+    setIsModalOpen(false);
+  };
+
+  const startCamera = async () => {
+    setErrorMsg('');
+    setCameraActive(true);
+    setTimeout(async () => {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ 
+          video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } } 
+        });
+        streamRef.current = stream;
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+        }
+      } catch (err) {
+        console.error("Camera access error:", err);
+        setCameraActive(false);
+        setErrorMsg("Failed to access camera. Please check permissions or upload an image instead.");
+      }
+    }, 100);
+  };
+
+  const stopCamera = () => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop());
+      streamRef.current = null;
+    }
+    setCameraActive(false);
+  };
+
+  const captureSnapshot = () => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    try {
+      const canvas = document.createElement('canvas');
+      canvas.width = video.videoWidth || 640;
+      canvas.height = video.videoHeight || 480;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      
+      const base64 = canvas.toDataURL('image/jpeg', 0.85);
+      
+      // Update form
+      setFormData(prev => ({ ...prev, billImage: base64 }));
+      
+      // Stop stream
+      stopCamera();
+      
+      // Run OCR using base64 image data
+      runOCR(base64);
+    } catch (err) {
+      console.error("Failed to capture image:", err);
+      setErrorMsg("Failed to capture snapshot from webcam feed.");
+    }
+  };
+
+  const parsePdfFile = async (file) => {
+    setScanning(true);
+    setScanProgress(0.1);
+    
+    try {
+      const arrayBuffer = await file.arrayBuffer();
+      const pdfjsLib = window.pdfjsLib || window['pdfjs-dist/build/pdf'];
+      if (!pdfjsLib) {
+        throw new Error("PDF parser library (PDF.js) is not loaded yet. Please wait a second and try again.");
+      }
+
+      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+      const page = await pdf.getPage(1);
+      
+      // Try to extract digital text first
+      const textContent = await page.getTextContent();
+      
+      // Reconstruct lines preserving newlines by sorting and grouping text items by vertical y coordinates
+      const items = [...textContent.items];
+      items.sort((a, b) => {
+        // y decreases down the page in PDF space, so group top-to-bottom
+        const yDiff = b.transform[5] - a.transform[5];
+        if (Math.abs(yDiff) > 5) {
+          return yDiff;
+        }
+        return a.transform[4] - b.transform[4]; // left-to-right
+      });
+
+      let reconstructedLines = [];
+      let currentLine = [];
+      let lastY = null;
+
+      for (const item of items) {
+        if (lastY === null) {
+          currentLine.push(item.str);
+          lastY = item.transform[5];
+        } else {
+          const yDiff = Math.abs(lastY - item.transform[5]);
+          if (yDiff > 5) {
+            reconstructedLines.push(currentLine.join(' '));
+            currentLine = [item.str];
+            lastY = item.transform[5];
+          } else {
+            currentLine.push(item.str);
+          }
+        }
+      }
+      if (currentLine.length > 0) {
+        reconstructedLines.push(currentLine.join(' '));
+      }
+
+      let extractedText = reconstructedLines.join('\n');
+      
+      // If the extracted text is very short/empty, render it onto a canvas and perform OCR
+      if (extractedText.trim().length < 10) {
+        console.log("PDF digital text is empty or too short. Rendering page to canvas for OCR...");
+        
+        const viewport = page.getViewport({ scale: 2.0 }); // 2x scale for higher OCR accuracy
+        const canvas = document.createElement('canvas');
+        const context = canvas.getContext('2d');
+        canvas.height = viewport.height;
+        canvas.width = viewport.width;
+        
+        await page.render({ canvasContext: context, viewport: viewport }).promise;
+        
+        setScanProgress(0.3);
+        
+        Tesseract.recognize(
+          canvas,
+          'eng',
+          {
+            logger: m => {
+              if (m.status === 'recognizing text') {
+                setScanProgress(0.3 + m.progress * 0.7);
+              }
+            }
+          }
+        ).then(({ data: { text } }) => {
+          setScanning(false);
+          parseReceiptText(text);
+        }).catch(err => {
+          console.error("Tesseract PDF Canvas OCR Error:", err);
+          setScanning(false);
+          setErrorMsg("Failed to run OCR on PDF page canvas.");
+        });
+      } else {
+        // Direct digital text extraction
+        setScanProgress(1.0);
+        setTimeout(() => {
+          setScanning(false);
+          parseReceiptText(extractedText);
+        }, 300);
+      }
+    } catch (error) {
+      console.error("PDF Parsing Error:", error);
+      setScanning(false);
+      setErrorMsg("Failed to parse PDF document: " + error.message);
+    }
+  };
+
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const isPdf = file.type === 'application/pdf';
+
+    // Convert file to Base64 to store in DB
+    const reader = new FileReader();
+    reader.onload = async () => {
+      const base64 = reader.result;
+      setFormData(prev => ({ ...prev, billImage: base64 }));
+      
+      if (isPdf) {
+        // Parse PDF file (direct text extraction or Canvas OCR)
+        parsePdfFile(file);
+      } else {
+        // Run local OCR
+        runOCR(file);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const runOCR = (file) => {
+    setScanning(true);
+    setScanProgress(0);
+    
+    Tesseract.recognize(
+      file,
+      'eng',
+      {
+        logger: m => {
+          if (m.status === 'recognizing text') {
+            setScanProgress(m.progress);
+          }
+        }
+      }
+    ).then(({ data: { text } }) => {
+      setScanning(false);
+      parseReceiptText(text);
+    }).catch(err => {
+      console.error("OCR Error:", err);
+      setScanning(false);
+      setErrorMsg("Failed to extract text from image. You can still input details manually.");
+    });
+  };
+
+  const parseReceiptText = (text) => {
+    if (!text) return;
+    
+    const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+    
+    // Helper to extract vendor name cleanly (ignore address segments after commas, or extract from quotes)
+    const extractVendorName = (line) => {
+      let vendor = line.trim();
+      
+      // If there are quotes, try to extract the quoted text
+      const quoteMatch = vendor.match(/["']([^"']+)["']/);
+      if (quoteMatch && quoteMatch[1] && quoteMatch[1].trim().length > 2) {
+        return quoteMatch[1].trim();
+      }
+      
+      // If there is a comma, take the part before the first comma
+      if (vendor.includes(',')) {
+        const parts = vendor.split(',');
+        if (parts[0].trim().length > 2) {
+          return parts[0].trim().replace(/["']/g, '').trim(); // strip quotes
+        }
+      }
+      
+      return vendor.replace(/["']/g, '').trim();
+    };
+
+    // 1. Payee / "To Whom" Parsing
+    let vendorName = '';
+    // Look for customer/payee/billed to patterns first (specific "to whom")
+    for (const line of lines) {
+      const matchTo = line.match(/(?:billed\s*to|sold\s*to|to|m\/s\.?|payee|customer|client)\s*[:\-=\s]\s*([a-z0-9\s&.',\-\/]+)/i);
+      if (matchTo && matchTo[1] && matchTo[1].trim().length > 2) {
+        vendorName = matchTo[1].trim();
+        break;
+      }
+    }
+    
+    if (!vendorName) {
+      for (const line of lines) {
+        const cleanLine = line.replace(/[^\w\s&'-]/g, '').trim();
+        if (
+          cleanLine &&
+          cleanLine.length > 3 &&
+          !/^\d+$/.test(cleanLine) && 
+          !/date/i.test(cleanLine) && 
+          !/time/i.test(cleanLine) &&
+          !/total|amount|rs|₹|net|tax/i.test(cleanLine) &&
+          !/invoice|bill\s*no|receipt|voucher/i.test(cleanLine) &&
+          !/cashier/i.test(cleanLine)
+        ) {
+          vendorName = extractVendorName(line);
+          break;
+        }
+      }
+    }
+
+    if (!vendorName && lines.length > 0) {
+      vendorName = extractVendorName(lines[0]);
+    }
+
+    // Prioritize "St. Jude's Public School" or "St Jude's" if present in the text
+    let institutionName = '';
+    for (const line of lines) {
+      if (/st\.?\s*jude/i.test(line)) {
+        const matchSchool = line.match(/(st\.?\s*jude'?s?\s*(?:public\s*)?school)/i);
+        if (matchSchool && matchSchool[1]) {
+          institutionName = matchSchool[1].trim();
+          break;
+        }
+        const matchJude = line.match(/(st\.?\s*jude'?s?)/i);
+        if (matchJude && matchJude[1]) {
+          institutionName = matchJude[1].trim();
+        }
+      }
+    }
+    if (institutionName) {
+      vendorName = institutionName;
+    }
+
+    // 2. Recipient Name / Student / Member Name
+    let recipientName = '';
+    for (const line of lines) {
+      const matchName = line.match(/(?:student\s*name|member\s*name|name|recipient)\s*[:\-=\s]\s*([a-z0-9\s&.',\-]+)/i);
+      if (matchName && matchName[1]) {
+        const cleanName = matchName[1].trim();
+        if (cleanName && cleanName.length > 2 && !/^(?:no|num|class|roll|date|amt|amount|total|rs|inr|cashier|principal|prepared)$/i.test(cleanName)) {
+          recipientName = cleanName;
+          break;
+        }
+      }
+    }
+
+    // 2a. Class / Standard Parsing
+    let className = '';
+    for (const line of lines) {
+      const matchClass = line.match(/class\s*[:\-=\s]\s*([a-z0-9\-\/]+)/i);
+      if (matchClass && matchClass[1]) {
+        className = matchClass[1].trim();
+        break;
+      }
+    }
+
+    // 2b. Roll Number Parsing
+    let rollNo = '';
+    for (const line of lines) {
+      const matchRoll = line.match(/roll\s*(?:no\.?|#|number|num)?\s*[:\-=\s]\s*([a-z0-9]+)/i);
+      if (matchRoll && matchRoll[1]) {
+        rollNo = matchRoll[1].trim();
+        break;
+      }
+    }
+
+    // 2c. Payment Method Parsing
+    let paymentMethod = '';
+    for (const line of lines) {
+      if (/transfer|cheque|cash|card|upi|neft|rtgs|mode/i.test(line) && !/total|amount/i.test(line)) {
+        const matchMode = line.match(/(?:transfer\s*on|mode|via|by)\s*[\d\-\/]*\s*\/?\s*([a-z0-9\s]+(?:mode|cheque|cash|card|upi|transfer)?)/i);
+        if (matchMode && matchMode[1]) {
+          paymentMethod = matchMode[1].trim();
+          break;
+        } else if (/cheque\s*mode/i.test(line)) {
+          paymentMethod = 'Cheque Mode';
+          break;
+        } else if (/cheque/i.test(line)) {
+          paymentMethod = 'Cheque';
+          break;
+        }
+      }
+    }
+
+    // 3. Amount Parsing (Find decimals or numbers near TOTAL/NET/AMOUNT keywords)
+    let amountVal = '';
+    const normalizedText = text.replace(/(rs\.?|₹|inr)\s*/ig, '$1');
+    const amountRegexes = [
+      /(?:total|net|amount|due|payable|cash|grand\s*total)\s*(?:amount|due|payable)?\s*(?::|=|\s)?\s*(?:rs\.?|₹|inr)?\s*([\d,]+(?:\.\d{2})?)/i,
+      /(?:rs\.?|₹|inr)\s*([\d,]+(?:\.\d{2})?)/i,
+      /([\d,]+\.\d{2})/
+    ];
+
+    let candidateAmounts = [];
+    for (const regex of amountRegexes) {
+      const matches = normalizedText.match(new RegExp(regex.source, 'gi'));
+      if (matches) {
+        for (const matchStr of matches) {
+          const execMatch = regex.exec(matchStr);
+          if (execMatch && execMatch[1]) {
+            const cleanNum = parseFloat(execMatch[1].replace(/,/g, ''));
+            if (!isNaN(cleanNum) && cleanNum > 0) {
+              candidateAmounts.push(cleanNum);
+            }
+          }
+        }
+      }
+    }
+
+    lines.forEach(line => {
+      if (/total|net|payable|amount/i.test(line)) {
+        const numMatch = line.match(/([\d,]+(?:\.\d{2})?)/);
+        if (numMatch) {
+          const cleanNum = parseFloat(numMatch[1].replace(/,/g, ''));
+          if (!isNaN(cleanNum) && cleanNum > 0) {
+            candidateAmounts.push(cleanNum);
+          }
+        }
+      }
+    });
+
+    if (candidateAmounts.length > 0) {
+      const maxAmount = Math.max(...candidateAmounts);
+      amountVal = maxAmount.toString();
+    }
+
+    // 4. Date Parsing
+    const dateRegex = /\b(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{2,4})\b|\b(\d{4})[\/\-\.](\d{1,2})[\/\-\.](\d{1,2})\b/;
+    const dateMatch = text.match(dateRegex);
+    let parsedDate = '';
+    
+    if (dateMatch) {
+      if (dateMatch[1] && dateMatch[2] && dateMatch[3]) {
+        let day = parseInt(dateMatch[1]);
+        let month = parseInt(dateMatch[2]);
+        let year = parseInt(dateMatch[3]);
+        if (year < 100) year += 2000;
+        if (month >= 1 && month <= 12 && day >= 1 && day <= 31) {
+          parsedDate = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        }
+      } else if (dateMatch[4] && dateMatch[5] && dateMatch[6]) {
+        let year = parseInt(dateMatch[4]);
+        let month = parseInt(dateMatch[5]);
+        let day = parseInt(dateMatch[6]);
+        if (month >= 1 && month <= 12 && day >= 1 && day <= 31) {
+          parsedDate = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        }
+      }
+    }
+
+    // 5. Voucher Ref No Parsing
+    let voucherRef = '';
+    for (const line of lines) {
+      const matchRef = line.match(/(?:voucher|inv(?:oice)?|bill|receipt|ref|vchr|vno|s\.?\s*no|sl\.?\s*no|serial)\s*(?:no\.?|#|number|num)?\s*[:\-=\s]?\s*([a-z0-9\-\/\.\#]+)/i);
+      if (matchRef && matchRef[1] && matchRef[1].trim().length > 0) {
+        const refVal = matchRef[1].trim();
+        if (refVal && !/^(?:no|num|date|amt|amount|total|rs|inr|serial)$/i.test(refVal)) {
+          voucherRef = refVal;
+          break;
+        }
+      }
+    }
+
+    // 6. Particulars (Detailed Explanation) Parsing
+    let particularsLines = [];
+    let particularsHeaderIndex = -1;
+
+    for (let i = 0; i < lines.length; i++) {
+      if (/particulars|description|details|items/i.test(lines[i])) {
+        particularsHeaderIndex = i;
+        break;
+      }
+    }
+
+    if (particularsHeaderIndex !== -1) {
+      for (let i = particularsHeaderIndex + 1; i < Math.min(lines.length, particularsHeaderIndex + 7); i++) {
+        const line = lines[i];
+        if (
+          line && 
+          !/total|tax|subtotal|gst|vat|rupees|amount|net|payable|prepared|printed|email|web/i.test(line) &&
+          !/^\d+$/.test(line)
+        ) {
+          particularsLines.push(line);
+        }
+        if (particularsLines.length >= 5) break;
+      }
+    } else {
+      for (const line of lines) {
+        const cleanLine = line.trim();
+        if (cleanLine === vendorName || cleanLine.toLowerCase().includes(vendorName.toLowerCase())) continue;
+        if (/\b\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4}\b/.test(cleanLine)) continue;
+        if (/\d{4}[\/\-\.]\d{1,2}[\/\-\.]\d{1,2}/.test(cleanLine)) continue;
+        if (/date|time/i.test(cleanLine)) continue;
+        if (/total|tax|subtotal|gst|vat|rupees|amount|net|payable|round|bal|balance|due|cash|card|upi|discount|disc/i.test(cleanLine)) continue;
+        if (/tel|phone|mobile|cell|email|www|website|address|street|road|near|opposite/i.test(cleanLine)) continue;
+        if (/thank|visit|terms|condition|welcome|duplicate|original|customer|client|cashier|operator|printed/i.test(cleanLine)) continue;
+        if (/^[^\w]+$/.test(cleanLine) || cleanLine.length < 3) continue;
+
+        particularsLines.push(cleanLine);
+        if (particularsLines.length >= 5) break;
+      }
+    }
+
+    // Helper to clean quantities and prices from item descriptions
+    const cleanItemName = (line) => {
+      // Remove leading index numbers (e.g. "1.", "01.", "1)")
+      let cleaned = line.replace(/^\s*[\d\.\-\)\*]+\s*/g, '');
+      // Remove trailing prices (e.g. "200.00", "₹1500", "Rs.500", "500")
+      cleaned = cleaned.replace(/\s*(?:rs\.?|₹|inr)?\s*[\d,]+(?:\.\d{2})?\s*$/i, '');
+      // Remove quantity formats like "10x", "x10", "10 nos", "qty 2", "5 pcs"
+      cleaned = cleaned.replace(/\s*\d+\s*(?:nos|pcs|qty|x|\*)\s*/gi, ' ');
+      cleaned = cleaned.replace(/\s*(?:nos|pcs|qty|x|\*)\s*\d+\s*/gi, ' ');
+      // Clean duplicate spaces and trim
+      cleaned = cleaned.replace(/\s+/g, ' ').trim();
+      return cleaned;
+    };
+
+    const cleanedItems = particularsLines.map(cleanItemName).filter(Boolean);
+    
+    // Analyze particulars items to categorize them semantically
+    let hasHostel = false;
+    let hasSchool = false;
+    let hasStore = false;
+    let hasAcademy = false;
+    let hasMess = false;
+    let hasTransport = false;
+
+    for (const item of cleanedItems) {
+      if (/hostel|dorm/i.test(item)) hasHostel = true;
+      if (/school|tuition|class|admission|education/i.test(item)) hasSchool = true;
+      if (/store|uniform|book|stationery/i.test(item)) hasStore = true;
+      if (/academy|computer|course|training/i.test(item)) hasAcademy = true;
+      if (/mess|food|canteen|dining/i.test(item)) hasMess = true;
+      if (/transport|bus|van|travel/i.test(item)) hasTransport = true;
+    }
+
+    let particularsSummary = '';
+    let categoryDetails = [];
+    
+    if (hasSchool) categoryDetails.push('School Tuition');
+    if (hasHostel) categoryDetails.push('Hostel');
+    if (hasStore) categoryDetails.push('Stores');
+    if (hasAcademy) categoryDetails.push('Academy');
+    if (hasMess) categoryDetails.push('Mess');
+    if (hasTransport) categoryDetails.push('Transport');
+
+    if (hasSchool && hasHostel) {
+      particularsSummary = 'School & Hostel Fees';
+    } else if (hasSchool) {
+      particularsSummary = 'School Fees';
+    } else if (hasHostel) {
+      particularsSummary = 'Hostel Fees';
+    } else if (hasStore) {
+      particularsSummary = 'School Stores Expense';
+    } else if (hasAcademy) {
+      particularsSummary = 'Academy Course Fees';
+    } else if (cleanedItems.length > 0) {
+      particularsSummary = cleanedItems.slice(0, 2).join(' & ');
+    } else {
+      particularsSummary = 'School Expense';
+    }
+
+    // Construct descriptive Title: [Merchant Name] - [Particulars Summary] (Student Name if present)
+    let generatedTitle = vendorName;
+    if (recipientName) {
+      generatedTitle = `${vendorName} - ${particularsSummary} (${recipientName})`;
+    } else {
+      generatedTitle = `${vendorName} - ${particularsSummary}`;
+    }
+
+    // Construct descriptive Explanation (Description)
+    let explanationVal = '';
+    const amountStr = amountVal ? `₹${parseFloat(amountVal).toLocaleString('en-IN')}` : '';
+    const dateStr = parsedDate ? ` on ${new Date(parsedDate).toLocaleDateString('en-IN', {day: '2-digit', month: '2-digit', year: 'numeric'})}` : '';
+    
+    explanationVal = `Fees payment of ${amountStr ? amountStr : 'specified amount'} made to ${vendorName}${dateStr}`;
+
+    if (recipientName) {
+      explanationVal += ` on behalf of student ${recipientName}`;
+      let studentDetails = [];
+      if (className) studentDetails.push(`Class: ${className}`);
+      if (rollNo) studentDetails.push(`Roll No: ${rollNo}`);
+      if (studentDetails.length > 0) {
+        explanationVal += ` (${studentDetails.join(', ')})`;
+      }
+    }
+
+    if (categoryDetails.length > 0) {
+      explanationVal += ` covering ${categoryDetails.join(', ')} fees`;
+    }
+
+    if (paymentMethod) {
+      explanationVal += ` paid via ${paymentMethod}`;
+    }
+
+    if (voucherRef) {
+      explanationVal += `. (Voucher Ref: ${voucherRef})`;
+    } else {
+      explanationVal += `.`;
+    }
+
+    // Autofill form
+    setFormData(prev => ({
+      ...prev,
+      title: generatedTitle,
+      amount: amountVal || prev.amount,
+      date: parsedDate || prev.date,
+      subDetails: explanationVal
+    }));
+
+    // Show nice status toast
+    let scanMsg = "Bill scanned successfully! ";
+    let parsedFields = [];
+    parsedFields.push(`Title: "${generatedTitle}"`);
+    if (amountVal) parsedFields.push(`Amount: ₹${parseFloat(amountVal).toLocaleString()}`);
+    if (parsedDate) parsedFields.push(`Date: ${parsedDate}`);
+    if (recipientName) parsedFields.push(`Name: "${recipientName}"`);
+    if (cleanedItems.length > 0) parsedFields.push(`Items: "${cleanedItems.join(', ')}"`);
+    if (voucherRef) parsedFields.push(`Voucher Ref: "${voucherRef}"`);
+    
+    if (parsedFields.length > 0) {
+      setSuccessMsg(scanMsg + "Extracted:\n" + parsedFields.join("\n"));
+    } else {
+      setSuccessMsg(scanMsg + "Please check or edit the form fields manually.");
+    }
   };
 
   const handleSubmitForm = async (e) => {
@@ -129,7 +742,8 @@ const ManageExpenses = ({ isCashier = false, currentCashier = null }) => {
         category: formData.category,
         subDetails: formData.subDetails,
         cashierId: formData.cashierId || undefined,
-        status: formData.status
+        status: formData.status,
+        billImage: formData.billImage || undefined
       };
 
       if (modalMode === 'create') {
@@ -140,7 +754,7 @@ const ManageExpenses = ({ isCashier = false, currentCashier = null }) => {
         setSuccessMsg(`Successfully updated expense: "${formData.title}"`);
       }
 
-      setIsModalOpen(false);
+      handleCloseModal();
       fetchExpensesAndCashiers();
     } catch (error) {
       setErrorMsg(error.response?.data?.error || 'Failed to save expense record.');
@@ -456,6 +1070,29 @@ const ManageExpenses = ({ isCashier = false, currentCashier = null }) => {
                   <td style={{ padding: '16px 12px' }}>
                     <strong style={{ color: '#0f172a', display: 'block', fontSize: '1.05rem', fontWeight: '800' }}>{exp.title}</strong>
                     {exp.subDetails && <span style={{ fontSize: '0.85rem', color: '#64748b', display: 'block', marginTop: '4px', fontStyle: 'italic', maxWidth: '360px' }}>{exp.subDetails}</span>}
+                    {exp.billImage && (
+                      <button 
+                        onClick={() => setPreviewImageSrc(exp.billImage)}
+                        style={{ 
+                          display: 'inline-flex', alignItems: 'center', gap: '6px', marginTop: '8px', 
+                          padding: '4px 10px', background: exp.billImage.startsWith('data:application/pdf') ? 'rgba(239, 68, 68, 0.12)' : 'rgba(79, 70, 229, 0.12)', 
+                          color: exp.billImage.startsWith('data:application/pdf') ? '#ef4444' : '#4f46e5', 
+                          border: 'none', borderRadius: '8px', fontSize: '0.75rem', fontWeight: '800', cursor: 'pointer', transition: 'all 0.2s' 
+                        }}
+                        onMouseOver={e => e.currentTarget.style.background = exp.billImage.startsWith('data:application/pdf') ? 'rgba(239, 68, 68, 0.2)' : 'rgba(79, 70, 229, 0.2)'}
+                        onMouseOut={e => e.currentTarget.style.background = exp.billImage.startsWith('data:application/pdf') ? 'rgba(239, 68, 68, 0.12)' : 'rgba(79, 70, 229, 0.12)'}
+                      >
+                        {exp.billImage.startsWith('data:application/pdf') ? (
+                          <>
+                            <FileText size={12} /> View PDF Bill
+                          </>
+                        ) : (
+                          <>
+                            <Receipt size={12} /> View Bill Image
+                          </>
+                        )}
+                      </button>
+                    )}
                   </td>
                   <td style={{ padding: '16px 12px' }}>
                     <span style={{ display: 'inline-block', background: '#f1f5f9', color: '#334155', fontWeight: '700', fontSize: '0.8rem', padding: '6px 12px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
@@ -524,7 +1161,7 @@ const ManageExpenses = ({ isCashier = false, currentCashier = null }) => {
 
       {/* Create / Edit Modal */}
       {isModalOpen && createPortal(
-        <div className="modal-overlay" onClick={() => setIsModalOpen(false)} style={{ zIndex: 9999 }}>
+        <div className="modal-overlay" onClick={handleCloseModal} style={{ zIndex: 9999 }}>
           <div className="modal-content glass-panel animate-fade-in" onClick={e => e.stopPropagation()} style={{ maxWidth: '640px', width: '100%', borderRadius: '28px', padding: '36px', background: 'rgba(255, 255, 255, 0.95)', border: '1px solid #cbd5e1', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', maxHeight: '90vh', overflowY: 'auto' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', borderBottom: '1px solid #e2e8f0', paddingBottom: '16px' }}>
               <div>
@@ -533,12 +1170,163 @@ const ManageExpenses = ({ isCashier = false, currentCashier = null }) => {
                 </h2>
                 <span style={{ fontSize: '0.85rem', color: '#64748b', fontWeight: '600' }}>Treasury Audit & Payment Voucher Form</span>
               </div>
-              <button onClick={() => setIsModalOpen(false)} style={{ background: '#f1f5f9', border: 'none', borderRadius: '50%', padding: '10px', cursor: 'pointer', color: '#64748b', transition: 'all 0.2s' }}>
+              <button onClick={handleCloseModal} style={{ background: '#f1f5f9', border: 'none', borderRadius: '50%', padding: '10px', cursor: 'pointer', color: '#64748b', transition: 'all 0.2s' }}>
                 <X size={20} />
               </button>
             </div>
 
             <form onSubmit={handleSubmitForm}>
+              <style>{`
+                @keyframes spin {
+                  from { transform: rotate(0deg); }
+                  to { transform: rotate(360deg); }
+                }
+              `}</style>
+              {/* Scan Bill Section */}
+              <div style={{ marginBottom: '24px', padding: '18px', background: 'rgba(99, 102, 241, 0.05)', border: '2px dashed rgba(99, 102, 241, 0.25)', borderRadius: '18px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+                  <div>
+                    <h4 style={{ margin: 0, fontSize: '0.95rem', fontWeight: '800', color: '#312e81', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <Receipt size={18} /> Upload or Scan Receipt/Bill
+                    </h4>
+                    <p style={{ margin: '4px 0 0 0', fontSize: '0.75rem', color: '#4f46e5', fontWeight: '600' }}>
+                      Supports images of printed or handwritten bills. OCR parses text.
+                    </p>
+                  </div>
+                  
+                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+                    <button
+                      type="button"
+                      onClick={startCamera}
+                      disabled={cameraActive}
+                      style={{ 
+                        padding: '8px 16px', background: '#0f172a', color: '#ffffff', border: 'none', borderRadius: '12px', 
+                        fontSize: '0.85rem', fontWeight: '800', cursor: 'pointer', display: 'flex', alignItems: 'center', 
+                        gap: '6px', boxShadow: '0 4px 10px rgba(15,23,42,0.3)', transition: 'all 0.2s', opacity: cameraActive ? 0.5 : 1
+                      }}
+                    >
+                      <Camera size={14} /> Open Camera
+                    </button>
+
+                    <input 
+                      type="file" 
+                      id="bill-scanner-file"
+                      accept="image/*,application/pdf"
+                      onChange={handleFileChange}
+                      style={{ display: 'none' }}
+                    />
+                    <label 
+                      htmlFor="bill-scanner-file"
+                      style={{ 
+                        padding: '8px 16px', background: '#4f46e5', color: '#ffffff', borderRadius: '12px', 
+                        fontSize: '0.85rem', fontWeight: '800', cursor: 'pointer', display: 'flex', alignItems: 'center', 
+                        gap: '6px', boxShadow: '0 4px 10px rgba(79,70,229,0.3)', transition: 'all 0.2s', margin: 0
+                      }}
+                    >
+                      <Upload size={14} /> Upload File
+                    </label>
+                    
+                    {formData.billImage && !cameraActive && (
+                      <button
+                        type="button"
+                        onClick={() => setFormData(prev => ({ ...prev, billImage: '' }))}
+                        style={{ 
+                          padding: '8px', background: '#fee2e2', color: '#ef4444', border: '1px solid #fecaca', 
+                          borderRadius: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center'
+                        }}
+                        title="Remove image"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Webcam Live Capture Viewfinder */}
+                {cameraActive && (
+                  <div style={{ background: '#000000', borderRadius: '16px', overflow: 'hidden', position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '12px' }}>
+                    <video 
+                      ref={videoRef} 
+                      autoPlay 
+                      playsInline 
+                      style={{ width: '100%', maxHeight: '320px', borderRadius: '12px', background: '#1e293b', objectFit: 'contain' }}
+                    />
+                    <div style={{ display: 'flex', gap: '12px', marginTop: '12px', width: '100%', justifyContent: 'center' }}>
+                      <button
+                        type="button"
+                        onClick={captureSnapshot}
+                        style={{ 
+                          padding: '10px 20px', background: '#10b981', color: '#ffffff', border: 'none', 
+                          borderRadius: '12px', fontSize: '0.85rem', fontWeight: '800', cursor: 'pointer',
+                          display: 'flex', alignItems: 'center', gap: '6px', boxShadow: '0 4px 10px rgba(16,185,129,0.3)'
+                        }}
+                      >
+                        <Camera size={14} /> Capture Photo
+                      </button>
+                      <button
+                        type="button"
+                        onClick={stopCamera}
+                        style={{ 
+                          padding: '10px 20px', background: '#ef4444', color: '#ffffff', border: 'none', 
+                          borderRadius: '12px', fontSize: '0.85rem', fontWeight: '800', cursor: 'pointer',
+                          display: 'flex', alignItems: 'center', gap: '6px', boxShadow: '0 4px 10px rgba(239,68,68,0.3)'
+                        }}
+                      >
+                        <X size={14} /> Close Camera
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Progress bar / Scanning status */}
+                {scanning && (
+                  <div style={{ background: '#ffffff', border: '1px solid #cbd5e1', borderRadius: '12px', padding: '12px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.8rem', fontWeight: '700', color: '#475569' }}>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <RefreshCw size={14} style={{ animation: 'spin 1s linear infinite' }} /> Performing OCR Scan...
+                      </span>
+                      <span>{(scanProgress * 100).toFixed(0)}%</span>
+                    </div>
+                    <div style={{ width: '100%', height: '6px', background: '#f1f5f9', borderRadius: '3px', overflow: 'hidden' }}>
+                      <div style={{ width: `${scanProgress * 100}%`, height: '100%', background: '#4f46e5', borderRadius: '3px', transition: 'width 0.2s ease-out' }}></div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Uploaded Thumbnail Preview */}
+                {formData.billImage && !scanning && !cameraActive && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '14px', background: '#ffffff', borderRadius: '14px', padding: '10px', border: '1px solid #cbd5e1', flexWrap: 'wrap' }}>
+                    {formData.billImage.startsWith('data:application/pdf') ? (
+                      <div style={{ width: '56px', height: '56px', background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ef4444' }}>
+                        <FileText size={24} />
+                      </div>
+                    ) : (
+                      <img 
+                        src={formData.billImage} 
+                        alt="Bill Preview" 
+                        style={{ width: '56px', height: '56px', objectFit: 'cover', borderRadius: '8px', border: '1px solid #e2e8f0' }}
+                      />
+                    )}
+                    <div style={{ flex: '1', minWidth: '150px' }}>
+                      <span style={{ display: 'block', fontSize: '0.8rem', fontWeight: '800', color: '#1e293b' }}>Bill attached successfully</span>
+                      <span style={{ display: 'block', fontSize: '0.7rem', color: '#64748b', fontWeight: '600' }}>
+                        {formData.billImage.startsWith('data:application/pdf') ? 'PDF Bill Document saved in DB' : 'Handwritten or printed photo saved in DB'}
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setPreviewImageSrc(formData.billImage)}
+                      style={{ 
+                        padding: '6px 12px', background: '#f1f5f9', color: '#475569', border: '1px solid #cbd5e1', 
+                        borderRadius: '8px', fontSize: '0.75rem', fontWeight: '700', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px'
+                      }}
+                    >
+                      <Eye size={12} /> View Full
+                    </button>
+                  </div>
+                )}
+              </div>
+
               <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '20px', marginBottom: '20px' }}>
                 {/* Title */}
                 <div>
@@ -673,7 +1461,7 @@ const ManageExpenses = ({ isCashier = false, currentCashier = null }) => {
               <div style={{ display: 'flex', gap: '16px', justifyContent: 'flex-end' }}>
                 <button 
                   type="button" 
-                  onClick={() => setIsModalOpen(false)}
+                  onClick={handleCloseModal}
                   style={{ padding: '14px 24px', borderRadius: '16px', border: '1px solid #cbd5e1', background: '#f1f5f9', color: '#475569', fontWeight: '800', fontSize: '1rem', cursor: 'pointer', transition: 'all 0.2s' }}
                 >
                   Cancel
@@ -750,6 +1538,47 @@ const ManageExpenses = ({ isCashier = false, currentCashier = null }) => {
             <p style={{ color: '#475569', fontSize: '1.1rem', lineHeight: '1.6', marginBottom: '28px', fontWeight: '600' }}>{errorMsg}</p>
             <button className="btn-primary" style={{ background: '#ef4444', border: 'none', color: '#ffffff', width: '100%', padding: '16px', borderRadius: '16px', fontWeight: '800', fontSize: '1.1rem', cursor: 'pointer', boxShadow: '0 4px 12px rgba(239,68,68,0.3)' }} onClick={() => setErrorMsg('')}>
               Okay
+            </button>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* Full Bill Image Preview Modal */}
+      {previewImageSrc && createPortal(
+        <div className="modal-overlay" onClick={() => setPreviewImageSrc('')} style={{ zIndex: 9999 }}>
+          <div className="modal-content glass-panel animate-fade-in" style={{ maxWidth: '600px', borderRadius: '28px', padding: '24px', textAlign: 'center', background: 'rgba(255, 255, 255, 0.95)', border: '1px solid #cbd5e1', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)' }} onClick={e => e.stopPropagation()}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', borderBottom: '1px solid #e2e8f0', paddingBottom: '12px' }}>
+              <h3 style={{ fontSize: '1.2rem', color: '#0f172a', fontWeight: '850', margin: 0 }}>Expenditure Receipt / Bill Attachment</h3>
+              <button onClick={() => setPreviewImageSrc('')} style={{ background: '#f1f5f9', border: 'none', borderRadius: '50%', padding: '6px', cursor: 'pointer', color: '#64748b' }}>
+                <X size={18} />
+              </button>
+            </div>
+            
+            <div style={{ overflow: 'auto', maxHeight: '70vh', borderRadius: '16px', border: '1px solid #e2e8f0', padding: '4px', background: '#f8fafc' }}>
+              {previewImageSrc.startsWith('data:application/pdf') ? (
+                <iframe 
+                  src={previewImageSrc} 
+                  width="100%" 
+                  height="500px" 
+                  style={{ border: 'none', borderRadius: '12px' }}
+                  title="PDF Attachment Viewer"
+                />
+              ) : (
+                <img 
+                  src={previewImageSrc} 
+                  alt="Receipt Attachment" 
+                  style={{ maxWidth: '100%', height: 'auto', borderRadius: '12px', display: 'block', margin: '0 auto' }}
+                />
+              )}
+            </div>
+
+            <button 
+              className="btn-primary" 
+              style={{ background: '#4f46e5', border: 'none', color: '#ffffff', width: '100%', padding: '14px', borderRadius: '16px', fontWeight: '800', fontSize: '1rem', cursor: 'pointer', marginTop: '20px', boxShadow: '0 4px 12px rgba(79,70,229,0.3)' }} 
+              onClick={() => setPreviewImageSrc('')}
+            >
+              Close Preview
             </button>
           </div>
         </div>,

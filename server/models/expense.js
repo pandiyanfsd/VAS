@@ -28,6 +28,9 @@ const expenseSchema = new mongoose.Schema({
     type: String,
     enum: ['pending', 'approved', 'rejected'],
     default: 'approved'
+  },
+  billImage: {
+    type: String // Base64 encoded string of the receipt/bill image
   }
 });
 

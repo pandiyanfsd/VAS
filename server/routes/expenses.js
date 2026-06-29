@@ -5,7 +5,7 @@ const { Expense } = require('../models/expense');
 // Create a new expense (Cashier or Admin can do this)
 router.post('/', async (req, res) => {
   try {
-    const { title, amount, date, category, subDetails, cashierId, status } = req.body;
+    const { title, amount, date, category, subDetails, cashierId, status, billImage } = req.body;
     
     // If Admin explicitly provides status, use it; if cashier logs it, automatically default to 'pending'
     const initialStatus = status || (cashierId ? 'pending' : 'approved');
@@ -17,7 +17,8 @@ router.post('/', async (req, res) => {
       category,
       subDetails,
       cashierId: cashierId || undefined,
-      status: initialStatus
+      status: initialStatus,
+      billImage
     });
 
     await expense.save();
@@ -61,8 +62,8 @@ router.get('/', async (req, res) => {
 // Update an expense
 router.put('/:id', async (req, res) => {
   try {
-    const { title, amount, date, category, subDetails, cashierId, status } = req.body;
-    let updateData = { title, amount, category, subDetails, status };
+    const { title, amount, date, category, subDetails, cashierId, status, billImage } = req.body;
+    let updateData = { title, amount, category, subDetails, status, billImage };
     if (date) updateData.date = new Date(date);
     if (cashierId) updateData.cashierId = cashierId;
 
