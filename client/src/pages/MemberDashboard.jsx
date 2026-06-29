@@ -53,6 +53,8 @@ const MemberDashboard = () => {
         'pandiyan': 'பாண்டியன்',
         'vinesh': 'வினேஷ்',
         'vinesh p': 'வினேஷ் பி',
+        'vineshpandiyan': 'வினேஷ் பாண்டியன்',
+        'vinesh pandiyan': 'வினேஷ் பாண்டியன்',
         'parvathii': 'பார்வதி',
         'durga': 'துர்கா',
         'ushaa': 'உஷா',
@@ -60,6 +62,8 @@ const MemberDashboard = () => {
         'test1': 'சோதனை 1',
         'test2': 'சோதனை 2',
         'pandiyanganeshan': 'பாண்டியன் கணேசன்',
+        'superadmin': 'சூப்பர் அட்மின்',
+        'testing': 'சோதனை',
         'sample': 'மாதிரி',
         'sample name': 'மாதிரி பெயர்'
       };
