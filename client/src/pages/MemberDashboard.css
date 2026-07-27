@@ -563,8 +563,70 @@
   }
 }
 
-/* Tamil Font Overrides */
+/* Tamil Font & Alignment Overrides */
 .lang-ta, .lang-ta * {
   font-family: 'Mukta Malar', 'Outfit', sans-serif !important;
+  letter-spacing: normal !important;
 }
+
+.lang-ta h1, .lang-ta h2, .lang-ta h3, .lang-ta h4, .lang-ta h5, .lang-ta h6 {
+  line-height: 1.35;
+}
+
+.lang-ta .demo-label,
+.lang-ta .card-meta-label,
+.lang-ta .report-table th,
+.lang-ta .status-badge {
+  text-transform: none !important;
+}
+
+.lang-ta .nav-item {
+  font-size: 0.92rem;
+  line-height: 1.4;
+  align-items: center;
+}
+
+.lang-ta .info-item {
+  align-items: center;
+  gap: 16px;
+}
+
+.lang-ta .info-label {
+  flex-shrink: 0;
+}
+
+.lang-ta .info-value {
+  text-align: right;
+  word-break: break-word;
+}
+
+.lang-ta .card-logo {
+  font-size: 1rem !important;
+  line-height: 1.3;
+}
+
+.lang-ta .card-holder-name {
+  font-size: 1.3rem !important;
+  line-height: 1.3;
+}
+
+.lang-ta .card-id-badge {
+  font-size: 0.78rem !important;
+}
+
+.lang-ta .card-meta-label {
+  font-size: 0.72rem !important;
+}
+
+.lang-ta .report-table th {
+  font-size: 0.88rem;
+  padding: 14px 16px;
+  vertical-align: middle;
+}
+
+.lang-ta .report-table td {
+  padding: 16px 16px;
+  vertical-align: middle;
+}
+
 

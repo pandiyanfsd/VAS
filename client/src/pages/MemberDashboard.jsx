@@ -26,6 +26,7 @@ import {
 } from 'lucide-react';
 import './MemberDashboard.css';
 import { translations } from '../utils/translations';
+import { transliterateToTamil } from '../utils/transliterateToTamil';
 
 const MemberDashboard = () => {
   const navigate = useNavigate();
@@ -38,17 +39,16 @@ const MemberDashboard = () => {
     if (!key) return '';
     const cleanKey = key.toString().trim();
     
-    // Check direct translations dictionary
+    // Check direct translations dictionary first
     if (translations[language]?.[cleanKey]) {
       return translations[language][cleanKey];
     }
     
-    // Handle dynamic database values when language is Tamil
+    // Handle dynamic database values & dynamic names when language is Tamil
     if (language === 'ta') {
-      const upperKey = cleanKey.toUpperCase();
       const lowerKey = cleanKey.toLowerCase();
       
-      // 1. Member and Family Names from Database
+      // 1. Member and Family Names from Database (Custom Overrides)
       const nameTranslations = {
         'pandiyan': 'பாண்டியன்',
         'vinesh': 'வினேஷ்',
@@ -125,6 +125,9 @@ const MemberDashboard = () => {
       if (cleanKey.includes('MONTHLY PAYMENT')) {
         return cleanKey.replace('MONTHLY PAYMENT', 'மாதாந்திர கட்டணம்');
       }
+
+      // 6. Phonetic Transliterator Engine: Converts ANY English name / text to Tamil!
+      return transliterateToTamil(cleanKey);
     }
     
     return translations['en']?.[cleanKey] || cleanKey;
