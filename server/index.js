@@ -3,6 +3,13 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const compression = require('compression');
 const dotenv = require('dotenv');
+const dns = require('dns');
+
+try {
+  dns.setDefaultResultOrder('ipv4first');
+} catch (e) {
+  // Ignored if unsupported
+}
 
 dotenv.config({ path: __dirname + '/.env' });
 

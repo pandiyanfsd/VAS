@@ -1,13 +1,21 @@
 // Run this ONCE to reset superadmin password in Atlas
-// Usage: node reset_admin.js
+const dns = require('dns');
+dns.setDefaultResultOrder('ipv4first');
+try {
+  dns.setServers(['8.8.8.8', '1.1.1.1']);
+} catch (e) {
+  console.log('DNS set error ignored');
+}
+
 const mongoose = require('mongoose');
 const bcrypt = require('bcrypt');
 
-const MONGO_URI = 'mongodb+srv://pandiyanfsd_db_user:iUNlgXbES6WfKGlg@cluster0.pzkddpr.mongodb.net/?appName=Cluster0';
+const MONGO_URI = 'mongodb+srv://pandiyanfsd_db_user:iUNlgXbES6WfKGlg@cluster0.pzkddpr.mongodb.net/VAS_NEW?retryWrites=true&w=majority';
 
 async function resetAdmin() {
+  console.log('Connecting to Atlas...');
   await mongoose.connect(MONGO_URI);
-  console.log('Connected to Atlas');
+  console.log('✅ Connected to Atlas');
 
   const db = mongoose.connection.db;
   const admins = await db.collection('admins').find({}).toArray();
