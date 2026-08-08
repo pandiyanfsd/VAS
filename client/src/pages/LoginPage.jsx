@@ -3,6 +3,8 @@ import { UserCircle, Shield, CreditCard, Lock, Eye, EyeOff } from 'lucide-react'
 import axios from 'axios';
 import './LoginPage.css';
 
+import { API_BASE_URL } from '../config';
+
 const LoginPage = () => {
   const [role, setRole] = useState('member'); // member, cashier, admin
   const [identifier, setIdentifier] = useState('');
@@ -13,9 +15,8 @@ const LoginPage = () => {
   const [showPassword, setShowPassword] = useState(false);
 
   React.useEffect(() => {
-    // Warm up the backend server on login page load (mitigates Render free-tier cold-start delays)
-    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-    axios.get(apiUrl).catch(() => {});
+    // Warm up the backend server on login page load
+    axios.get(`${API_BASE_URL}/`).catch(() => {});
   }, []);
 
 
@@ -30,7 +31,7 @@ const LoginPage = () => {
       else if (role === 'cashier') payload.phone = identifier;
       else payload.identifier = identifier;
 
-      const res = await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/auth/${role}/login`, payload);
+      const res = await axios.post(`${API_BASE_URL}/api/auth/${role}/login`, payload);
       
       // Store token
       localStorage.setItem('token', res.data.token);
