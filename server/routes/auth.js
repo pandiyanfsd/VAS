@@ -11,17 +11,20 @@ const authorizeRoles = require('../middleware/auth').authorizeRoles;
 router.post('/admin/login', async (req, res) => {
   try {
     const { name, password } = req.body;
-    const admin = await Admin.findOne({ name });
+    if (!name || !password) return res.status(400).send({ error: 'Username and password are required.' });
+
+    const trimmedName = String(name).trim();
+    const admin = await Admin.findOne({ name: { $regex: new RegExp(`^${trimmedName}$`, 'i') } });
     if (!admin) return res.status(400).send({ error: 'Invalid username or password.' });
 
-    // Use bcrypt to compare hashed password
-    const validPassword = await bcrypt.compare(password, admin.password);
+    const validPassword = await bcrypt.compare(String(password).trim(), admin.password);
     if (!validPassword) return res.status(400).send({ error: 'Invalid username or password.' });
 
     const token = admin.generateAuthToken();
     res.send({ token, role: 'admin', user: { _id: admin._id, name: admin.name } });
   } catch (error) {
-    res.status(500).send('Server Error');
+    console.error('Admin login error:', error);
+    res.status(500).send({ error: 'Server Error during login.' });
   }
 });
 // ADMIN RESET PASSWORD (no current password required)

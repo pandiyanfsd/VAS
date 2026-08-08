@@ -26,10 +26,12 @@ const LoginPage = () => {
     setLoading(true);
 
     try {
-      let payload = { password };
-      if (role === 'admin') payload.name = identifier;
-      else if (role === 'cashier') payload.phone = identifier;
-      else payload.identifier = identifier;
+      const cleanIdentifier = String(identifier).trim();
+      const cleanPassword = String(password).trim();
+      let payload = { password: cleanPassword };
+      if (role === 'admin') payload.name = cleanIdentifier;
+      else if (role === 'cashier') payload.phone = cleanIdentifier;
+      else payload.identifier = cleanIdentifier;
 
       const res = await axios.post(`${API_BASE_URL}/api/auth/${role}/login`, payload);
       
@@ -44,7 +46,8 @@ const LoginPage = () => {
       else window.location.href = '/member';
 
     } catch (err) {
-      setError(err.response?.data?.error || 'Login failed. Please try again.');
+      console.error('Login submit error:', err);
+      setError(err.response?.data?.error || err.message || 'Login failed. Please try again.');
     } finally {
       setLoading(false);
     }
