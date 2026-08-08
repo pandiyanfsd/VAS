@@ -1,11 +1,15 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
+const compression = require('compression');
 const dotenv = require('dotenv');
 
 dotenv.config({ path: __dirname + '/.env' });
 
 const app = express();
+
+// Enable Gzip Response Compression
+app.use(compression());
 
 // Middleware
 app.use(express.json());
@@ -33,11 +37,14 @@ async function connectDB() {
     const opts = {
       bufferCommands: false,
     };
-    const { healDues } = require('./services/duesService');
     cachedMongoose.promise = mongoose.connect(MONGO_URI, opts).then((mongooseInstance) => {
       console.log('✅ Connected to MongoDB');
-      createSuperAdmin(); // Seed the initial admin user
-      healDues(true).catch(err => console.error('Failed to run initial dues healing:', err));
+      // Async non-blocking startup tasks (does not delay cold-start HTTP response)
+      createSuperAdmin().catch(err => console.error('SuperAdmin seed error:', err));
+      if (process.env.VERCEL !== '1') {
+        const { healDues } = require('./services/duesService');
+        healDues(true).catch(err => console.error('Failed to run initial dues healing:', err));
+      }
       return mongooseInstance;
     });
   }

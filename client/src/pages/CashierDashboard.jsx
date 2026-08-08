@@ -18,10 +18,17 @@ import {
   RefreshCw,
   Lock,
   Edit,
-  Trash2
+  Trash2,
+  Camera,
+  Upload,
+  Zap,
+  CheckCircle2,
+  FileText,
+  Plus
 } from 'lucide-react';
 import './AdminDashboard.css'; // Reuses structural sidebar layouts
 import ManageExpenses from '../components/ManageExpenses';
+import { parsePaymentPhoto } from '../utils/ocrPaymentParser';
 
 const CashierDashboard = () => {
   const navigate = useNavigate();
@@ -161,6 +168,338 @@ const CashierDashboard = () => {
     onConfirm: () => {},
     type: 'primary'
   });
+
+  // Photo Payment Upload & Approval Modal States
+  const [showPhotoModal, setShowPhotoModal] = useState(false);
+  const [photoFile, setPhotoFile] = useState(null);
+  const [photoMetadata, setPhotoMetadata] = useState(null);
+  const [photoTotalAmount, setPhotoTotalAmount] = useState('');
+  const [photoPaymentMode, setPhotoPaymentMode] = useState('upi');
+  const [photoPaymentDate, setPhotoPaymentDate] = useState(getTodayDateString());
+  const [photoNotes, setPhotoNotes] = useState('');
+  const [photoMembers, setPhotoMembers] = useState([]);
+  const [photoSearchTerm, setPhotoSearchTerm] = useState('');
+  const [processingPhotoBatch, setProcessingPhotoBatch] = useState(false);
+  const [batchReceiptsResult, setBatchReceiptsResult] = useState(null);
+  const [showBatchSuccessModal, setShowBatchSuccessModal] = useState(false);
+  const [photoError, setPhotoError] = useState('');
+  const [photoZoom, setPhotoZoom] = useState(false);
+
+  // Pagewise document review states
+  const [currentPageIndex, setCurrentPageIndex] = useState(0);
+  const [photoPages, setPhotoPages] = useState([]);
+
+  // Handle Photo File Selection & OCR parsing
+  const handlePhotoFileChange = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setPhotoError('');
+    setPhotoFile(file);
+    try {
+      const parsed = await parsePaymentPhoto(file);
+      setPhotoMetadata(parsed);
+      setPhotoTotalAmount(parsed.extractedAmount || '');
+      setPhotoPaymentMode(parsed.paymentMode || 'upi');
+      setPhotoNotes(parsed.referenceNo ? `UTR/Ref: ${parsed.referenceNo}` : '');
+      setPhotoPaymentDate(parsed.detectedDate || getTodayDateString());
+
+      const initialPages = (parsed.pages || []).map(p => ({
+        pageNum: p.pageNum,
+        pageTotalAmount: p.extractedAmount || 2400,
+        paymentMode: p.paymentMode || 'upi',
+        paymentDate: p.paymentDate || getTodayDateString(),
+        notes: p.referenceNo ? `UTR/Ref: ${p.referenceNo}` : '',
+        extractedId: p.extractedId || '',
+        extractedMonth: p.extractedMonth || '',
+        extractedYear: p.extractedYear || '',
+        members: [],
+        isApproved: false
+      }));
+
+      const finalPages = initialPages.length > 0 ? initialPages : [{
+        pageNum: 1,
+        pageTotalAmount: parsed.extractedAmount || 2400,
+        paymentMode: parsed.paymentMode || 'upi',
+        paymentDate: parsed.detectedDate || getTodayDateString(),
+        notes: parsed.referenceNo ? `UTR/Ref: ${parsed.referenceNo}` : '',
+        extractedId: parsed.extractedId || '',
+        extractedMonth: parsed.extractedMonth || '',
+        extractedYear: parsed.extractedYear || '',
+        members: [],
+        isApproved: false
+      }];
+
+      setPhotoPages(finalPages);
+      setCurrentPageIndex(0);
+
+      // If a member was currently selected on dashboard, auto-add them
+      if (selectedMember && photoMembers.length === 0) {
+        handleAddMemberToPhoto(selectedMember, parsed.extractedAmount || 2400);
+      }
+    } catch (err) {
+      console.error("Error parsing photo receipt", err);
+      setPhotoError("Failed to parse photo receipt file.");
+    }
+  };
+
+  // Pagewise Navigation Handlers with State Preservation
+  const handleSwitchPage = (targetIdx) => {
+    if (targetIdx < 0 || targetIdx >= photoPages.length) return;
+
+    // 1. Save current page state
+    setPhotoPages(prevPages => prevPages.map((pg, idx) => {
+      if (idx === currentPageIndex) {
+        return {
+          ...pg,
+          pageTotalAmount: photoTotalAmount,
+          paymentMode: photoPaymentMode,
+          paymentDate: photoPaymentDate,
+          notes: photoNotes,
+          members: photoMembers
+        };
+      }
+      return pg;
+    }));
+
+    // 2. Load target page state
+    const targetPage = photoPages[targetIdx];
+    if (targetPage) {
+      setCurrentPageIndex(targetIdx);
+      setPhotoTotalAmount(targetPage.pageTotalAmount || '');
+      setPhotoPaymentMode(targetPage.paymentMode || 'upi');
+      setPhotoNotes(targetPage.notes || '');
+      setPhotoPaymentDate(targetPage.paymentDate || getTodayDateString());
+      setPhotoMembers(targetPage.members || []);
+    }
+  };
+
+  const handleAddPage = () => {
+    // Save current page state first
+    setPhotoPages(prevPages => prevPages.map((pg, idx) => {
+      if (idx === currentPageIndex) {
+        return {
+          ...pg,
+          pageTotalAmount: photoTotalAmount,
+          paymentMode: photoPaymentMode,
+          paymentDate: photoPaymentDate,
+          notes: photoNotes,
+          members: photoMembers
+        };
+      }
+      return pg;
+    }));
+
+    const newPageNum = photoPages.length + 1;
+    const newPage = {
+      pageNum: newPageNum,
+      pageTotalAmount: 2400,
+      paymentMode: 'upi',
+      paymentDate: getTodayDateString(),
+      notes: `Page ${newPageNum} Receipt`,
+      extractedId: '',
+      extractedMonth: '',
+      extractedYear: '',
+      members: [],
+      isApproved: false
+    };
+
+    setPhotoPages(prev => [...prev, newPage]);
+    setCurrentPageIndex(photoPages.length);
+    setPhotoTotalAmount(2400);
+    setPhotoPaymentMode('upi');
+    setPhotoNotes(`Page ${newPageNum} Receipt`);
+    setPhotoPaymentDate(getTodayDateString());
+    setPhotoMembers([]);
+  };
+
+  // Add Member to Photo Payment List & Auto-Allocate
+  const handleAddMemberToPhoto = async (memberToAdd, suggestedAmount) => {
+    if (!memberToAdd) return;
+    if (photoMembers.some(m => m.member._id === memberToAdd._id)) {
+      setPhotoError(`${memberToAdd.name} is already added to this photo receipt.`);
+      return;
+    }
+    setPhotoError('');
+    try {
+      const res = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/dues/member/${memberToAdd._id}`);
+      const unpaid = (res.data || []).filter(d => d.status !== 'paid');
+
+      let targetAmt = suggestedAmount;
+      if (!targetAmt) {
+        const remainingToDistribute = Math.max(0, (parseFloat(photoTotalAmount) || 0) - photoMembers.reduce((sum, pm) => sum + (parseFloat(pm.amountAllocated) || 0), 0));
+        targetAmt = remainingToDistribute > 0 ? remainingToDistribute : 2400;
+      }
+
+      const entry = {
+        member: memberToAdd,
+        unpaidDues: unpaid,
+        amountAllocated: targetAmt,
+        splits: {},
+        selectedFunds: {}
+      };
+
+      autoAllocateMemberEntry(entry, targetAmt, unpaid);
+
+      setPhotoMembers(prev => [...prev, entry]);
+      setPhotoSearchTerm('');
+    } catch (err) {
+      console.error("Error loading dues for photo member", err);
+      setPhotoError("Failed to load unpaid dues for selected member.");
+    }
+  };
+
+  // Auto-Allocate an entry's allocated amount to its pending dues (oldest first)
+  const autoAllocateMemberEntry = (entry, allocAmount, unpaidList) => {
+    const sorted = [...(unpaidList || entry.unpaidDues || [])].sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+    let remaining = parseFloat(allocAmount) || 0;
+    const newSplits = {};
+    const newSelected = {};
+
+    sorted.forEach(due => {
+      if (remaining <= 0) return;
+      const maxRem = due.totalDueAmount - due.amountPaid;
+      const alloc = Math.min(remaining, maxRem);
+      if (alloc > 0) {
+        newSplits[due._id] = alloc;
+        newSelected[due._id] = true;
+        remaining -= alloc;
+      }
+    });
+
+    entry.splits = newSplits;
+    entry.selectedFunds = newSelected;
+  };
+
+  // Remove member from photo receipt list
+  const handleRemoveMemberFromPhoto = (memberId) => {
+    setPhotoMembers(prev => prev.filter(m => m.member._id !== memberId));
+  };
+
+  // Update a member's allocated total amount in photo payment
+  const handleMemberPhotoAmountChange = (memberId, newAmt) => {
+    setPhotoMembers(prev => prev.map(item => {
+      if (item.member._id === memberId) {
+        const updated = { ...item, amountAllocated: newAmt };
+        autoAllocateMemberEntry(updated, newAmt, item.unpaidDues);
+        return updated;
+      }
+      return item;
+    }));
+  };
+
+  // Toggle fund selection for a member in photo payment
+  const handleTogglePhotoMemberFund = (memberId, dueId) => {
+    setPhotoMembers(prev => prev.map(item => {
+      if (item.member._id === memberId) {
+        const nextSel = { ...item.selectedFunds, [dueId]: !item.selectedFunds[dueId] };
+        return { ...item, selectedFunds: nextSel };
+      }
+      return item;
+    }));
+  };
+
+  // Change split amount for a specific fund of a member in photo payment
+  const handlePhotoMemberFundSplitChange = (memberId, dueId, val, maxVal) => {
+    let numericVal = val === '' ? '' : parseFloat(val);
+    if (numericVal !== '' && (isNaN(numericVal) || numericVal < 0)) return;
+    if (numericVal !== '' && numericVal > maxVal) numericVal = maxVal;
+
+    setPhotoMembers(prev => prev.map(item => {
+      if (item.member._id === memberId) {
+        const nextSplits = { ...item.splits, [dueId]: numericVal };
+        const sumAlloc = Object.keys(nextSplits).reduce((sum, id) => sum + (parseFloat(nextSplits[id]) || 0), 0);
+        return { ...item, splits: nextSplits, amountAllocated: sumAlloc };
+      }
+      return item;
+    }));
+  };
+
+  // Submit Photo Batch Payment for Cashier Approval
+  const handleApprovePhotoBatchPayment = async () => {
+    // Sync current active page state into photoPages
+    const updatedPages = photoPages.map((pg, idx) => {
+      if (idx === currentPageIndex) {
+        return {
+          ...pg,
+          pageTotalAmount: photoTotalAmount,
+          paymentMode: photoPaymentMode,
+          paymentDate: photoPaymentDate,
+          notes: photoNotes,
+          members: photoMembers
+        };
+      }
+      return pg;
+    });
+
+    const allPageMembers = updatedPages.flatMap(p => p.members || []);
+    const sourceMembers = allPageMembers.length > 0 ? allPageMembers : photoMembers;
+
+    if (sourceMembers.length === 0) {
+      setPhotoError("Please add at least one villager member to allocate this document payment.");
+      return;
+    }
+
+    const items = sourceMembers.map(pm => {
+      const splitDetails = Object.keys(pm.splits)
+        .filter(dueId => pm.selectedFunds[dueId] && pm.splits[dueId] > 0)
+        .map(dueId => {
+          const due = pm.unpaidDues.find(d => d._id === dueId);
+          return {
+            fundId: due?.fundId?._id,
+            amountAllocated: parseFloat(pm.splits[dueId]) || 0
+          };
+        })
+        .filter(s => s.fundId && s.amountAllocated > 0);
+
+      const memberTotal = splitDetails.reduce((sum, s) => sum + s.amountAllocated, 0);
+
+      return {
+        memberId: pm.member._id,
+        totalAmountPaid: memberTotal,
+        splitDetails,
+        notes: `Photo/PDF Upload [${photoMetadata?.fileName || 'slip'}] • Page Receipt • ${photoNotes || 'Approved by cashier'}`
+      };
+    }).filter(item => item.splitDetails.length > 0);
+
+    if (items.length === 0) {
+      setPhotoError("No valid fund amounts allocated. Please allocate funds for at least one member.");
+      return;
+    }
+
+    setProcessingPhotoBatch(true);
+    setPhotoError('');
+
+    try {
+      const payload = {
+        items,
+        cashierId: cashier._id,
+        paymentMode: photoPaymentMode,
+        paymentDate: photoPaymentDate,
+        notes: photoNotes || `Photo Receipt Upload (${photoMetadata?.fileName || ''})`
+      };
+
+      const res = await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/payments/batch`, payload);
+
+      setBatchReceiptsResult(res.data.receipts || []);
+      setShowPhotoModal(false);
+      setShowBatchSuccessModal(true);
+
+      // Reset photo form state
+      setPhotoFile(null);
+      setPhotoMetadata(null);
+      setPhotoMembers([]);
+      setPhotoTotalAmount('');
+      setPhotoNotes('');
+
+      // Refresh financials
+      fetchFinancials(cashier._id);
+    } catch (err) {
+      console.error("Error submitting photo batch payment", err);
+      setPhotoError(err.response?.data?.error || "Failed to process photo payment batch.");
+    } finally {
+      setProcessingPhotoBatch(false);
+    }
+  };
 
   const showCustomConfirm = ({ title, message, confirmText, cancelText, onConfirm, type = 'primary' }) => {
     setConfirmConfig({
@@ -769,7 +1108,30 @@ const CashierDashboard = () => {
             <div>
               {/* Member Lookup Bar */}
               <div className="glass-panel p-6 mb-6" style={{ borderRadius: '20px', background: 'white', border: '1px solid #cbd5e1', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)', position: 'relative' }}>
-                <h3 style={{ fontSize: '1.1rem', color: '#0f172a', fontWeight: '800', marginBottom: '14px', paddingLeft: '4px' }}>Lookup Villager Profile</h3>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', flexWrap: 'wrap', gap: '10px' }}>
+                  <h3 style={{ fontSize: '1.1rem', color: '#0f172a', fontWeight: '800', margin: 0, paddingLeft: '4px' }}>Lookup Villager Profile</h3>
+                  
+                  <button
+                    onClick={() => { setShowPhotoModal(true); setPhotoError(''); }}
+                    style={{
+                      background: 'linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)',
+                      color: 'white',
+                      border: 'none',
+                      padding: '10px 18px',
+                      borderRadius: '12px',
+                      fontWeight: '800',
+                      fontSize: '0.88rem',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      boxShadow: '0 4px 12px rgba(99, 102, 241, 0.3)',
+                      transition: 'all 0.2s'
+                    }}
+                  >
+                    <Camera size={18} /> Record Photo Payment (New)
+                  </button>
+                </div>
                 
                 <div style={{ display: 'flex', gap: '15px' }}>
                   <div style={{ flex: 1, position: 'relative' }}>
@@ -2150,6 +2512,524 @@ const CashierDashboard = () => {
       {/* Overlay for mobile */}
       {isMobileMenuOpen && (
         <div className="sidebar-overlay" onClick={() => setIsMobileMenuOpen(false)}></div>
+      )}
+
+      {/* Photo Payment Upload & Approval Modal */}
+      {showPhotoModal && (
+        <div className="modal-backdrop animate-fade-in" style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'rgba(15, 23, 42, 0.75)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: '20px' }}>
+          <div className="modal-content animate-scale-up" style={{ width: '100%', maxWidth: '960px', maxHeight: '90vh', background: 'white', borderRadius: '24px', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)' }}>
+            
+            {/* Modal Header */}
+            <div style={{ padding: '20px 24px', borderBottom: '1px solid #e2e8f0', background: '#f8fafc', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <Camera size={24} color="#6366f1" />
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '1.2rem', color: '#0f172a', fontWeight: '800' }}>Record Payment via Photo Upload</h3>
+                  <span style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: '600' }}>Upload receipt, review auto-extracted details, & approve member dues</span>
+                </div>
+              </div>
+              <button 
+                onClick={() => setShowPhotoModal(false)}
+                style={{ background: '#e2e8f0', border: 'none', color: '#475569', width: '32px', height: '32px', borderRadius: '50%', cursor: 'pointer', fontSize: '0.9rem', fontWeight: '800', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div style={{ padding: '24px', overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: '20px' }}>
+              
+              {photoError && (
+                <div style={{ padding: '12px 16px', borderRadius: '12px', background: '#fef2f2', border: '1px solid rgba(239,68,68,0.2)', color: '#ef4444', fontSize: '0.88rem', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <AlertCircle size={18} />
+                  <span>{photoError}</span>
+                </div>
+              )}
+
+              {!photoFile ? (
+                /* Upload Dropzone View */
+                <div style={{ border: '2px dashed #cbd5e1', borderRadius: '20px', padding: '40px 20px', textAlign: 'center', background: '#f8fafc', transition: 'all 0.2s', cursor: 'pointer' }} onClick={() => document.getElementById('photo-input-file').click()}>
+                  <input 
+                    id="photo-input-file"
+                    type="file" 
+                    accept="image/*,application/pdf,.pdf"
+                    onChange={handlePhotoFileChange}
+                    style={{ display: 'none' }}
+                  />
+                  <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: 'rgba(99, 102, 241, 0.1)', color: '#6366f1', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px auto' }}>
+                    <Upload size={32} />
+                  </div>
+                  <h4 style={{ margin: '0 0 6px 0', fontSize: '1.1rem', color: '#0f172a', fontWeight: '800' }}>Drop payment receipt photo or PDF document here</h4>
+                  <p style={{ margin: 0, fontSize: '0.85rem', color: '#64748b', fontWeight: '600' }}>Supports UPI screenshots, bank slips, cash receipts, and PDF documents</p>
+                </div>
+              ) : (
+                /* Interactive Pagewise Approval & Allocation View */
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  
+                  {/* Pagewise Navigation Bar */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#f1f5f9', padding: '10px 16px', borderRadius: '14px', border: '1px solid #cbd5e1' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ fontSize: '0.85rem', fontWeight: '800', color: '#0f172a' }}>
+                        📄 Page Review ({currentPageIndex + 1} of {photoPages.length || 1}):
+                      </span>
+                      
+                      {(photoPages.length > 0 ? photoPages : [{ pageNum: 1 }]).map((pg, idx) => (
+                        <button 
+                          key={idx}
+                          onClick={() => handleSwitchPage(idx)}
+                          style={{
+                            padding: '5px 14px',
+                            borderRadius: '8px',
+                            border: idx === currentPageIndex ? '2px solid #6366f1' : '1px solid #cbd5e1',
+                            background: idx === currentPageIndex ? '#6366f1' : (pg.isApproved ? '#dcfce7' : 'white'),
+                            color: idx === currentPageIndex ? 'white' : (pg.isApproved ? '#166534' : '#475569'),
+                            fontWeight: '800',
+                            fontSize: '0.8rem',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '4px'
+                          }}
+                        >
+                          {pg.isApproved ? '✅' : '📄'} Page {idx + 1} {pg.isApproved ? '(Approved)' : ''}
+                        </button>
+                      ))}
+
+                      <button 
+                        onClick={handleAddPage}
+                        style={{ background: '#e0e7ff', color: '#4f46e5', border: 'none', padding: '5px 12px', borderRadius: '8px', fontSize: '0.8rem', fontWeight: '800', cursor: 'pointer' }}
+                      >
+                        + Add Page
+                      </button>
+                    </div>
+
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <button 
+                        disabled={currentPageIndex === 0}
+                        onClick={() => handleSwitchPage(currentPageIndex - 1)}
+                        style={{ background: 'white', border: '1px solid #cbd5e1', color: currentPageIndex === 0 ? '#94a3b8' : '#334155', padding: '5px 12px', borderRadius: '8px', fontSize: '0.8rem', fontWeight: '800', cursor: currentPageIndex === 0 ? 'not-allowed' : 'pointer' }}
+                      >
+                        ← Prev Page
+                      </button>
+
+                      <button 
+                        disabled={currentPageIndex >= photoPages.length - 1}
+                        onClick={() => handleSwitchPage(currentPageIndex + 1)}
+                        style={{ background: 'white', border: '1px solid #cbd5e1', color: currentPageIndex >= photoPages.length - 1 ? '#94a3b8' : '#334155', padding: '5px 12px', borderRadius: '8px', fontSize: '0.8rem', fontWeight: '800', cursor: currentPageIndex >= photoPages.length - 1 ? 'not-allowed' : 'pointer' }}
+                      >
+                        Next Page →
+                      </button>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.3fr', gap: '24px' }}>
+                  
+                  {/* Left Column: Photo / PDF Preview & Metadata */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                    <div style={{ border: '1px solid #cbd5e1', borderRadius: '16px', overflow: 'hidden', background: '#0f172a', position: 'relative' }}>
+                      {photoMetadata?.isPdf ? (
+                        <div style={{ padding: '30px 20px', textAlign: 'center', background: '#1e293b', color: 'white', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '10px' }}>
+                          <FileText size={48} color="#38bdf8" />
+                          <strong style={{ fontSize: '0.95rem' }}>{photoMetadata.fileName}</strong>
+                          <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>PDF Receipt Document ({photoMetadata.fileSize})</span>
+                          <a 
+                            href={photoMetadata.imageUrl} 
+                            target="_blank" 
+                            rel="noreferrer"
+                            style={{ color: '#38bdf8', fontSize: '0.8rem', fontWeight: '800', textDecoration: 'underline', marginTop: '4px' }}
+                          >
+                            📄 Open Full PDF Document ↗
+                          </a>
+                        </div>
+                      ) : (
+                        photoMetadata?.imageUrl && (
+                          <img 
+                            src={photoMetadata.imageUrl} 
+                            alt="Payment Receipt" 
+                            style={{ width: '100%', maxHeight: '260px', objectFit: 'contain', display: 'block' }} 
+                          />
+                        )
+                      )}
+                      <div style={{ position: 'absolute', bottom: '10px', right: '10px', background: 'rgba(0,0,0,0.6)', color: 'white', padding: '4px 10px', borderRadius: '8px', fontSize: '0.75rem', fontWeight: '700' }}>
+                        {photoMetadata?.fileName} ({photoMetadata?.fileSize})
+                      </div>
+                    </div>
+
+                    <div style={{ background: '#f8fafc', padding: '16px', borderRadius: '16px', border: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                      <h4 style={{ margin: 0, fontSize: '0.95rem', color: '#0f172a', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <Zap size={16} color="#6366f1" /> Captured Receipt Details
+                      </h4>
+
+                      {/* Captured ID & Month Metadata Banner with RED Highlighting */}
+                      <div style={{ background: 'linear-gradient(135deg, #fef2f2 0%, #ffe4e6 100%)', border: '1px solid #fca5a5', padding: '12px', borderRadius: '12px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <span style={{ fontSize: '0.78rem', color: '#991b1b', fontWeight: '800', textTransform: 'uppercase' }}>Detected Receipt ID / Ref:</span>
+                          <span style={{ background: '#dc2626', color: 'white', padding: '3px 10px', borderRadius: '8px', fontSize: '0.85rem', fontWeight: '900', letterSpacing: '0.5px' }}>
+                            🔴 ID: {photoMetadata?.extractedId || photoMetadata?.referenceNo || 'N/A'}
+                          </span>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.8rem' }}>
+                          <span style={{ color: '#991b1b', fontWeight: '700' }}>Detected Period / Month:</span>
+                          <strong style={{ color: '#991b1b', fontWeight: '800' }}>
+                            {photoMetadata?.extractedMonth || 'Yearly / Monthly'} {photoMetadata?.extractedYear || ''}
+                          </strong>
+                        </div>
+
+                        {/* Check if captured ID matches any registered villager */}
+                        {(() => {
+                          const extId = photoMetadata?.extractedId;
+                          if (!extId) return null;
+                          const matchedMem = allMembers.find(m => 
+                            String(m.memberId) === String(extId) || 
+                            String(m.familyId) === String(extId)
+                          );
+                          if (!matchedMem) return null;
+                          const isAlreadyAdded = photoMembers.some(pm => pm.member._id === matchedMem._id);
+
+                          return (
+                            <div style={{ marginTop: '4px', paddingTop: '8px', borderTop: '1px dashed #fca5a5', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                              <span style={{ fontSize: '0.78rem', color: '#dc2626', fontWeight: '800' }}>
+                                🎯 Red ID Match: <strong>{matchedMem.name}</strong> (Fam ID: {matchedMem.familyId})
+                              </span>
+                              {!isAlreadyAdded ? (
+                                <button 
+                                  onClick={() => handleAddMemberToPhoto(matchedMem)}
+                                  style={{ background: '#dc2626', color: 'white', border: 'none', padding: '3px 10px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: '900', cursor: 'pointer', boxShadow: '0 2px 4px rgba(220, 38, 38, 0.3)' }}
+                                >
+                                  + Auto-Add Member
+                                </button>
+                              ) : (
+                                <span style={{ fontSize: '0.72rem', color: '#16a34a', fontWeight: '800' }}>✅ Added</span>
+                              )}
+                            </div>
+                          );
+                        })()}
+                      </div>
+
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                        <div>
+                          <label style={{ fontSize: '0.75rem', fontWeight: '800', color: '#64748b', textTransform: 'uppercase', display: 'block', marginBottom: '4px' }}>Total Amount (₹)</label>
+                          <input 
+                            type="number"
+                            value={photoTotalAmount}
+                            onChange={(e) => setPhotoTotalAmount(e.target.value)}
+                            placeholder="e.g. 2400"
+                            style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '1.1rem', fontWeight: '900', color: '#4f46e5', outline: 'none', boxSizing: 'border-box' }}
+                          />
+                        </div>
+
+                        <div>
+                          <label style={{ fontSize: '0.75rem', fontWeight: '800', color: '#64748b', textTransform: 'uppercase', display: 'block', marginBottom: '4px' }}>Payment Mode</label>
+                          <select 
+                            value={photoPaymentMode}
+                            onChange={(e) => setPhotoPaymentMode(e.target.value)}
+                            style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.85rem', fontWeight: '700', color: '#334155', outline: 'none', boxSizing: 'border-box' }}
+                          >
+                            <option value="upi">UPI / GPay / PhonePe</option>
+                            <option value="cash">Cash Counter</option>
+                            <option value="online">Bank Transfer / NEFT</option>
+                            <option value="card">Card / POS</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                        <div>
+                          <label style={{ fontSize: '0.75rem', fontWeight: '800', color: '#64748b', textTransform: 'uppercase', display: 'block', marginBottom: '4px' }}>Payment Date</label>
+                          <input 
+                            type="date"
+                            value={photoPaymentDate}
+                            onChange={(e) => setPhotoPaymentDate(e.target.value)}
+                            style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.85rem', fontWeight: '700', color: '#334155', outline: 'none', boxSizing: 'border-box' }}
+                          />
+                        </div>
+
+                        <div>
+                          <label style={{ fontSize: '0.75rem', fontWeight: '800', color: '#64748b', textTransform: 'uppercase', display: 'block', marginBottom: '4px' }}>Ref / UTR Number</label>
+                          <input 
+                            type="text"
+                            value={photoNotes}
+                            onChange={(e) => setPhotoNotes(e.target.value)}
+                            placeholder="e.g. UTR 123456"
+                            style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.85rem', fontWeight: '700', color: '#334155', outline: 'none', boxSizing: 'border-box' }}
+                          />
+                        </div>
+                      </div>
+
+                      <button 
+                        onClick={() => { setPhotoFile(null); setPhotoMetadata(null); }}
+                        style={{ background: 'transparent', border: 'none', color: '#64748b', fontSize: '0.8rem', fontWeight: '700', cursor: 'pointer', textAlign: 'left', padding: 0 }}
+                      >
+                        🔄 Replace Photo / PDF
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Right Column: Member Selection & Multi-Fund Allocation */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                    <h4 style={{ margin: 0, fontSize: '0.95rem', color: '#0f172a', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <User size={16} color="#6366f1" /> Allocate Payment to Villager Member(s)
+                    </h4>
+
+                    {/* Member Search Bar for Photo Payment */}
+                    <div style={{ position: 'relative' }}>
+                      <input 
+                        type="text"
+                        placeholder="Type name or Family ID to add member to photo receipt..."
+                        value={photoSearchTerm}
+                        onChange={(e) => setPhotoSearchTerm(e.target.value)}
+                        style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: '1px solid #cbd5e1', outline: 'none', fontSize: '0.88rem', fontWeight: '600', boxSizing: 'border-box' }}
+                      />
+                      {photoSearchTerm.trim() !== '' && (
+                        <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: 'white', border: '1px solid #cbd5e1', borderRadius: '10px', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)', zIndex: 100, marginTop: '4px', overflow: 'hidden' }}>
+                          {allMembers.filter(m => 
+                            m.name.toLowerCase().includes(photoSearchTerm.toLowerCase()) || 
+                            (m.familyId && m.familyId.toString().includes(photoSearchTerm)) ||
+                            (m.memberId && m.memberId.toString().includes(photoSearchTerm))
+                          ).slice(0, 5).map(m => (
+                            <div 
+                              key={m._id}
+                              onClick={() => handleAddMemberToPhoto(m)}
+                              style={{ padding: '10px 14px', cursor: 'pointer', borderBottom: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.85rem' }}
+                              onMouseEnter={(e) => e.currentTarget.style.background = '#f8fafc'}
+                              onMouseLeave={(e) => e.currentTarget.style.background = 'white'}
+                            >
+                              <div>
+                                <strong style={{ color: '#0f172a', display: 'block' }}>{m.name}</strong>
+                                <div style={{ display: 'flex', gap: '6px', marginTop: '2px' }}>
+                                  <span style={{ background: '#fee2e2', color: '#dc2626', border: '1px solid #fca5a5', padding: '1px 6px', borderRadius: '4px', fontSize: '0.72rem', fontWeight: '900' }}>
+                                    🔴 Family ID: {m.familyId}
+                                  </span>
+                                  <span style={{ background: '#fee2e2', color: '#dc2626', border: '1px solid #fca5a5', padding: '1px 6px', borderRadius: '4px', fontSize: '0.72rem', fontWeight: '900' }}>
+                                    🔴 Member ID: {m.memberId}
+                                  </span>
+                                </div>
+                              </div>
+                              <span style={{ background: '#ecfdf5', color: '#10b981', padding: '2px 8px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: '800' }}>+ Add</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Selected Members Allocation Cards */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', maxHeight: '340px', overflowY: 'auto' }}>
+                      {photoMembers.length === 0 ? (
+                        <div style={{ padding: '30px 20px', textAlign: 'center', background: '#f8fafc', borderRadius: '12px', border: '1px dashed #cbd5e1', color: '#64748b', fontSize: '0.85rem', fontWeight: '600' }}>
+                          No members added to this photo payment yet. Search and select a member above.
+                        </div>
+                      ) : (
+                        photoMembers.map((pm, idx) => (
+                          <div key={pm.member._id} style={{ background: '#f8fafc', borderRadius: '14px', border: '1px solid #e2e8f0', padding: '14px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                              <div>
+                                <strong style={{ color: '#0f172a', fontSize: '0.95rem' }}>{pm.member.name}</strong>
+                                <div style={{ display: 'flex', gap: '6px', marginTop: '2px' }}>
+                                  <span style={{ background: '#fee2e2', color: '#dc2626', border: '1px solid #fca5a5', padding: '1px 6px', borderRadius: '4px', fontSize: '0.72rem', fontWeight: '900' }}>
+                                    🔴 Family ID: {pm.member.familyId}
+                                  </span>
+                                  <span style={{ background: '#fee2e2', color: '#dc2626', border: '1px solid #fca5a5', padding: '1px 6px', borderRadius: '4px', fontSize: '0.72rem', fontWeight: '900' }}>
+                                    🔴 Member ID: {pm.member.memberId}
+                                  </span>
+                                </div>
+                              </div>
+                              <button 
+                                onClick={() => handleRemoveMemberFromPhoto(pm.member._id)}
+                                style={{ background: 'rgba(239,68,68,0.1)', color: '#ef4444', border: 'none', borderRadius: '6px', padding: '4px 8px', fontSize: '0.75rem', fontWeight: '800', cursor: 'pointer' }}
+                              >
+                                Remove
+                              </button>
+                            </div>
+
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'white', padding: '8px 12px', borderRadius: '8px', border: '1px solid #cbd5e1' }}>
+                              <span style={{ fontSize: '0.8rem', fontWeight: '800', color: '#475569' }}>Member Share Amount (₹)</span>
+                              <input 
+                                type="number"
+                                value={pm.amountAllocated}
+                                onChange={(e) => handleMemberPhotoAmountChange(pm.member._id, e.target.value)}
+                                style={{ width: '110px', padding: '4px 8px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '0.9rem', fontWeight: '800', color: '#0f172a', textAlign: 'right', outline: 'none' }}
+                              />
+                            </div>
+
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                              <span style={{ fontSize: '0.78rem', fontWeight: '800', color: '#64748b' }}>Pending Funds Breakdown:</span>
+                              <button 
+                                onClick={() => autoAllocateMemberEntry(pm, pm.amountAllocated, pm.unpaidDues)}
+                                style={{ background: '#e0e7ff', color: '#4f46e5', border: 'none', borderRadius: '6px', padding: '3px 8px', fontSize: '0.72rem', fontWeight: '800', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
+                              >
+                                <Zap size={12} /> Auto-Allocate Dues
+                              </button>
+                            </div>
+
+                            {pm.unpaidDues.length === 0 ? (
+                              <span style={{ fontSize: '0.75rem', color: '#10b981', fontWeight: '700', fontStyle: 'italic' }}>
+                                ✅ Member has no pending dues!
+                              </span>
+                            ) : (
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                {pm.unpaidDues.map(due => {
+                                  const maxRem = due.totalDueAmount - due.amountPaid;
+                                  const isChecked = !!pm.selectedFunds[due._id];
+                                  const allocVal = pm.splits[due._id] !== undefined ? pm.splits[due._id] : '';
+                                  const fundObj = due.fundId || {};
+                                  const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+                                  const mName = fundObj.month ? MONTHS[fundObj.month - 1] : '';
+                                  const yStr = fundObj.year || '';
+                                  const dueIdShort = fundObj._id ? fundObj._id.slice(-6).toUpperCase() : due._id.slice(-6).toUpperCase();
+
+                                  return (
+                                    <div key={due._id} style={{ background: 'white', padding: '8px 10px', borderRadius: '8px', border: isChecked ? '1px solid #818cf8' : '1px solid #f1f5f9', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                        <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', flex: 1 }}>
+                                          <input 
+                                            type="checkbox"
+                                            checked={isChecked}
+                                            onChange={() => handleTogglePhotoMemberFund(pm.member._id, due._id)}
+                                          />
+                                          <div>
+                                            <strong style={{ fontSize: '0.85rem', color: '#0f172a', display: 'block' }}>{fundDisplayName(due.fundId)}</strong>
+                                            <div style={{ display: 'flex', gap: '6px', marginTop: '2px', alignItems: 'center' }}>
+                                              <span style={{ background: '#fee2e2', color: '#dc2626', border: '1px solid #fca5a5', padding: '1px 6px', borderRadius: '4px', fontSize: '0.7rem', fontWeight: '900' }}>
+                                                🔴 Fund ID: {dueIdShort}
+                                              </span>
+                                              {(mName || yStr) && (
+                                                <span style={{ background: '#f1f5f9', color: '#475569', padding: '1px 6px', borderRadius: '4px', fontSize: '0.7rem', fontWeight: '700' }}>
+                                                  📅 Period: {[mName, yStr].filter(Boolean).join(' ')}
+                                                </span>
+                                              )}
+                                              <span style={{ fontSize: '0.7rem', color: '#64748b', fontWeight: '700' }}>
+                                                Target: ₹{due.totalDueAmount}
+                                              </span>
+                                            </div>
+                                          </div>
+                                        </label>
+                                      </div>
+
+                                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px dashed #f1f5f9', paddingTop: '6px' }}>
+                                        <span style={{ fontSize: '0.75rem', color: '#dc2626', fontWeight: '800' }}>
+                                          Outstanding: ₹{maxRem}
+                                        </span>
+                                        
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                          <button
+                                            onClick={() => {
+                                              if (!isChecked) handleTogglePhotoMemberFund(pm.member._id, due._id);
+                                              handlePhotoMemberFundSplitChange(pm.member._id, due._id, maxRem, maxRem);
+                                            }}
+                                            style={{ background: '#e0e7ff', color: '#4f46e5', border: 'none', borderRadius: '4px', padding: '2px 8px', fontSize: '0.7rem', fontWeight: '800', cursor: 'pointer' }}
+                                          >
+                                            ⚡ Fill ₹{maxRem}
+                                          </button>
+                                          <input 
+                                            type="number"
+                                            value={allocVal}
+                                            onChange={(e) => handlePhotoMemberFundSplitChange(pm.member._id, due._id, e.target.value, maxRem)}
+                                            disabled={!isChecked}
+                                            placeholder="0"
+                                            style={{ width: '70px', padding: '3px 6px', borderRadius: '4px', border: '1px solid #cbd5e1', fontSize: '0.85rem', fontWeight: '800', textAlign: 'right', outline: 'none' }}
+                                          />
+                                        </div>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            </div>
+
+            {/* Modal Footer */}
+            {photoFile && (
+              <div style={{ padding: '16px 24px', borderTop: '1px solid #e2e8f0', background: '#f8fafc', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ fontSize: '0.85rem', fontWeight: '700', color: '#475569' }}>
+                  Allocated (Page {currentPageIndex + 1}): <strong style={{ color: '#4f46e5' }}>₹{photoMembers.reduce((sum, pm) => sum + (parseFloat(pm.amountAllocated) || 0), 0).toLocaleString()}</strong> / Total: <strong style={{ color: '#0f172a' }}>₹{parseFloat(photoTotalAmount || 0).toLocaleString()}</strong>
+                </div>
+
+                <div style={{ display: 'flex', gap: '12px' }}>
+                  <button 
+                    onClick={() => setShowPhotoModal(false)}
+                    disabled={processingPhotoBatch}
+                    style={{ padding: '10px 18px', borderRadius: '10px', border: '1px solid #cbd5e1', background: 'white', color: '#475569', fontWeight: '800', cursor: processingPhotoBatch ? 'not-allowed' : 'pointer' }}
+                  >
+                    Cancel
+                  </button>
+                  <button 
+                    onClick={() => {
+                      if (currentPageIndex < photoPages.length - 1) {
+                        setPhotoPages(prev => prev.map((p, idx) => idx === currentPageIndex ? { ...p, isApproved: true } : p));
+                        handleSwitchPage(currentPageIndex + 1);
+                      } else {
+                        handleApprovePhotoBatchPayment();
+                      }
+                    }}
+                    disabled={processingPhotoBatch}
+                    style={{ padding: '10px 24px', borderRadius: '10px', border: 'none', background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', color: 'white', fontWeight: '800', cursor: processingPhotoBatch ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 4px 10px rgba(16, 185, 129, 0.25)' }}
+                  >
+                    {processingPhotoBatch ? <RefreshCw size={16} className="animate-spin" /> : <CheckCircle2 size={16} />}
+                    {processingPhotoBatch 
+                      ? 'Recording Payments...' 
+                      : (currentPageIndex < photoPages.length - 1 
+                          ? `Approve Page ${currentPageIndex + 1} & Go to Page ${currentPageIndex + 2} ➔` 
+                          : 'Approve & Record All Pages'
+                        )
+                    }
+                  </button>
+                </div>
+              </div>
+            )}
+
+          </div>
+        </div>
+      )}
+
+      {/* Batch Success Receipts Confirmation Modal */}
+      {showBatchSuccessModal && batchReceiptsResult && (
+        <div className="modal-overlay" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15, 23, 42, 0.75)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px', backdropFilter: 'blur(4px)' }}>
+          <div className="modal-content animate-fade-in" style={{ background: 'white', borderRadius: '24px', width: '100%', maxWidth: '520px', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)', overflow: 'hidden' }}>
+            <div style={{ padding: '24px', background: 'linear-gradient(135deg, #059669 0%, #10b981 100%)', color: 'white', textAlign: 'center' }}>
+              <CheckCircle2 size={48} style={{ marginBottom: '12px' }} />
+              <h3 style={{ margin: '0 0 6px 0', fontSize: '1.4rem', fontWeight: '900' }}>Photo Payments Recorded Successfully!</h3>
+              <p style={{ margin: 0, fontSize: '0.88rem', opacity: 0.9, fontWeight: '600' }}>
+                Receipts generated and member fund ledgers reconciled.
+              </p>
+            </div>
+
+            <div style={{ padding: '24px', maxHeight: '300px', overflowY: 'auto' }}>
+              <h4 style={{ margin: '0 0 12px 0', fontSize: '0.9rem', color: '#64748b', textTransform: 'uppercase', fontWeight: '800' }}>Generated Member Receipts</h4>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                {batchReceiptsResult.map((rcpt, idx) => (
+                  <div key={idx} style={{ background: '#f8fafc', padding: '12px 16px', borderRadius: '12px', border: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div>
+                      <strong style={{ color: '#0f172a', display: 'block', fontSize: '0.92rem' }}>{rcpt.memberId?.name}</strong>
+                      <span style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: '700' }}>Receipt No: <code style={{ color: '#4f46e5', background: '#e0e7ff', padding: '2px 6px', borderRadius: '4px' }}>{rcpt.receiptNumber}</code></span>
+                    </div>
+                    <div style={{ textAlign: 'right' }}>
+                      <strong style={{ color: '#10b981', fontSize: '1.05rem', display: 'block' }}>₹{rcpt.totalAmountPaid.toLocaleString()}</strong>
+                      <span style={{ fontSize: '0.75rem', color: '#64748b' }}>{rcpt.splitDetails?.length} funds paid</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div style={{ padding: '16px 24px', borderTop: '1px solid #e2e8f0', background: '#f8fafc', display: 'flex', justifyContent: 'flex-end' }}>
+              <button 
+                onClick={() => { setShowBatchSuccessModal(false); setBatchReceiptsResult(null); }}
+                style={{ padding: '10px 24px', borderRadius: '10px', border: 'none', background: '#4f46e5', color: 'white', fontWeight: '800', cursor: 'pointer', boxShadow: '0 4px 10px rgba(79, 70, 229, 0.25)' }}
+              >
+                Done & Close
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

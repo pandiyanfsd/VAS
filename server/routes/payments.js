@@ -62,6 +62,80 @@ router.post('/', async (req, res) => {
   }
 });
 
+// Process batch multi-member/multi-fund photo payments
+router.post('/batch', async (req, res) => {
+  try {
+    const { items, cashierId, paymentMode, paymentDate, notes } = req.body;
+    // items is an array of: { memberId, splitDetails, notes, totalAmountPaid }
+
+    if (!Array.isArray(items) || items.length === 0) {
+      return res.status(400).send({ error: 'No member payment items provided' });
+    }
+
+    let finalPaymentDate = undefined;
+    if (paymentDate) {
+      const parsedDate = new Date(paymentDate);
+      if (!isNaN(parsedDate.getTime())) {
+        finalPaymentDate = parsedDate;
+      }
+    }
+
+    const processedReceipts = [];
+
+    for (const item of items) {
+      let itemTotalAmountPaid = item.totalAmountPaid || 0;
+      if (!itemTotalAmountPaid && Array.isArray(item.splitDetails)) {
+        itemTotalAmountPaid = item.splitDetails.reduce((sum, s) => sum + (s.amountAllocated || 0), 0);
+      }
+
+      if (!item.memberId || !item.splitDetails || item.splitDetails.length === 0) {
+        continue;
+      }
+
+      const payment = new Payment({
+        memberId: item.memberId,
+        cashierId,
+        paymentSource: 'cashier_portal',
+        totalAmountPaid: itemTotalAmountPaid,
+        paymentMode: paymentMode || 'upi',
+        splitDetails: item.splitDetails,
+        notes: item.notes || notes || 'Recorded via photo receipt upload',
+        paymentDate: finalPaymentDate
+      });
+
+      await payment.save();
+
+      // Reconcile dues
+      for (const split of item.splitDetails) {
+        const due = await MemberFundDue.findOne({ memberId: item.memberId, fundId: split.fundId });
+        if (due) {
+          due.amountPaid += split.amountAllocated;
+          if (due.amountPaid >= due.totalDueAmount) {
+            due.status = 'paid';
+          } else if (due.amountPaid > 0) {
+            due.status = 'partially_paid';
+          }
+          await due.save();
+        }
+      }
+
+      const populated = await Payment.findById(payment._id)
+        .populate('memberId', 'name familyId memberId phone')
+        .populate('splitDetails.fundId', 'name fundType year month');
+
+      processedReceipts.push(populated);
+    }
+
+    res.status(201).send({
+      message: `Successfully processed payments for ${processedReceipts.length} members`,
+      receipts: processedReceipts
+    });
+  } catch (error) {
+    console.error('[POST /api/payments/batch] ERROR:', error.message);
+    res.status(500).send({ error: 'Batch payment processing failed', details: error.message });
+  }
+});
+
 // Get all payments (Receipt History) with Advanced Filters
 router.get('/', async (req, res) => {
   try {

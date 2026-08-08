@@ -35,6 +35,9 @@ const memberFundDueSchema = new mongoose.Schema({
 
 // Compound index to ensure a member only has one due record per fund
 memberFundDueSchema.index({ memberId: 1, fundId: 1 }, { unique: true });
+memberFundDueSchema.index({ memberId: 1, status: 1 });
+memberFundDueSchema.index({ status: 1 });
+memberFundDueSchema.index({ createdAt: -1 });
 
 const MemberFundDue = mongoose.model('MemberFundDue', memberFundDueSchema);
 
