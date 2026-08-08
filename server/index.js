@@ -93,18 +93,25 @@ const surrenderRoutes = require('./routes/surrenders');
 const settingRoutes = require('./routes/settings');
 const donationRoutes = require('./routes/donations');
 
-// Register Routes
-app.use('/api/auth', authRoutes);
-app.use('/api/funds', fundRoutes);
-app.use('/api/dues', dueRoutes);
-app.use('/api/payments', paymentRoutes);
-app.use('/api/expenses', expenseRoutes);
-app.use('/api/members', memberRoutes);
-app.use('/api/cashiers', cashierRoutes);
-app.use('/api/reports', reportRoutes);
-app.use('/api/surrenders', surrenderRoutes);
-app.use('/api/settings', settingRoutes);
-app.use('/api/donations', donationRoutes);
+// Register Routes (Supports both /api/* and /* for Vercel serverless functions)
+const routePairs = [
+  ['/auth', authRoutes],
+  ['/funds', fundRoutes],
+  ['/dues', dueRoutes],
+  ['/payments', paymentRoutes],
+  ['/expenses', expenseRoutes],
+  ['/members', memberRoutes],
+  ['/cashiers', cashierRoutes],
+  ['/reports', reportRoutes],
+  ['/surrenders', surrenderRoutes],
+  ['/settings', settingRoutes],
+  ['/donations', donationRoutes],
+];
+
+routePairs.forEach(([p, router]) => {
+  app.use(`/api${p}`, router);
+  app.use(p, router);
+});
 
 // Simple health check
 app.get('/', (req, res) => {
