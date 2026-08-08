@@ -118,6 +118,15 @@ app.get('/', (req, res) => {
   res.send('VAS API is running...');
 });
 
+app.get('/api', (req, res) => {
+  res.send('VAS API is running...');
+});
+
+// Fallback handler for unmatched API routes
+app.use((req, res) => {
+  res.status(404).json({ error: `Route ${req.originalUrl || req.url} not found` });
+});
+
 const PORT = process.env.PORT || 5000;
 require('./cron');
 app.listen(PORT, () => console.log(`🚀 Server listening on port ${PORT}...`));
